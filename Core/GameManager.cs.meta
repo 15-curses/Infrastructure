@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 98bfbe480fa96ae479d19a2371df90db
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - menuData: {fileID: 11400000, guid: b3a4392df2df2c847824f47590dd9637, type: 2}
+  - playingData: {fileID: 11400000, guid: 7e711ac6177f47048ae3f24c710e5192, type: 2}
+  - pausedData: {fileID: 11400000, guid: 4ff1a4bac487e084ab07552a4e1010f8, type: 2}
+  - winData: {fileID: 11400000, guid: e8785c3f327892b4f97b902c02f1d971, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

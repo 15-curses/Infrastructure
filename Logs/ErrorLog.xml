@@ -1,0 +1,13 @@
+<ErrorLogs>
+  <Error>
+    <ID>ERR001</ID>
+    <Category>CameraSystem</Category>
+    <Type>MissingReference</Type>
+    <Level>Error</Level>
+    <UnityMessage>
+      Объект якорь для камеры не найден, проверьте подключён ли он в inspector раздел: Camera Anchor, поле: objectAnchor
+    </UnityMessage>
+    <SuggestedFix>Assign GameObject to cameraAnchor field</SuggestedFix>
+	<AdditionalInfo></AdditionalInfo>
+  </Error>
+</ErrorLogs>
