@@ -2,8 +2,11 @@
 using Assets.Infrastructure.Core;
 using Assets.Infrastructure.InputManager;
 using Assets.Infrastructure.ObjectManager;
+using Assets.Infrastructure.Physics;
+using Assets.Infrastructure.Physics.GPU;
 using Assets.Tools.Console.Logic;
 using UnityEngine;
+using physics = Assets.Infrastructure.Physics;
 
 namespace Assets.Infrastructure.ServiceLocator
 {
@@ -19,6 +22,7 @@ namespace Assets.Infrastructure.ServiceLocator
             ServiceContainer.RegisterMonoSingleton<InputSystem>();
             ServiceContainer.RegisterMonoSingleton<BallControl>();
             ServiceContainer.RegisterMonoSingleton<CueController>();
+            ServiceContainer.RegisterMonoSingleton<PhisicsMain>();
 
             ServiceContainer.RegisterSingleton<ObjectInitializer>();
             ServiceContainer.RegisterSingleton<MethodFinder>();
