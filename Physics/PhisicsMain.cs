@@ -1,30 +1,28 @@
-﻿using System.Collections.Generic;
+﻿using Assets.Infrastructure.Physics.GPU;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace Assets.Infrastructure.Physics
 {
-    [StructLayout(LayoutKind.Sequential)]
     struct Main_Buffer
     {
-        public int4 id;
+        public float4 id;
         public float4 position;
         public float4 velocity;
         public float4 rotation;
         public float4 angularVelocity;
-        public float mass;
-        public float drag;
-        public int hasError;
+        public float4 mass_drag_hasError;
     };
     public class PhisicsMain : MonoBehaviour
     {
         public int countSize = 1000;
-        public int strideOfBuffer = Marshal.SizeOf<Main_Buffer>();
+        public int strideOfBuffer;
 
         public ComputeShader computeShader;
 
-        public Vector3 Gravity = new Vector3(0, 9.8f, 0);
+        public Vector3 Gravity = new Vector3(0, -9.8f, 0);
 
         private Dictionary<int, GameObject> slovaric = new();
         Stack<int> freeSlots;
@@ -44,6 +42,7 @@ namespace Assets.Infrastructure.Physics
             {
                 freeSlots.Push(i);
             }
+            strideOfBuffer = Marshal.SizeOf<Main_Buffer>();
             groups = Mathf.CeilToInt(countSize / 64f);
             readBuffer = new ComputeBuffer(countSize, strideOfBuffer);
             sendBuffer = new ComputeBuffer(countSize, strideOfBuffer);
@@ -51,11 +50,13 @@ namespace Assets.Infrastructure.Physics
 
             kernel = computeShader.FindKernel("Physics");
             computeShader.SetVector("_Gravity", Gravity);
+
+            System.Array.Clear(toSendBuffer, 0, toSendBuffer.Length);
         }
-        private void FixedUpdate()
+        private void Update()
         {
             sendBuffer.SetData(toSendBuffer);
-            computeShader.SetFloat("_DeltaTime", Time.fixedDeltaTime);
+            computeShader.SetFloat("_DeltaTime", Time.deltaTime);
             computeShader.SetBuffer(kernel, "_Buffer", sendBuffer);
             computeShader.Dispatch(kernel, groups, 1, 1);
 
@@ -64,7 +65,7 @@ namespace Assets.Infrastructure.Physics
 
         public int AddToBuffer(
             GameObject gObject,
-            int4 _id,
+            float4 _id,
             Vector3? _position = null,
             float3? _velocity = null,
             float3? _rotation = null,
@@ -114,9 +115,7 @@ namespace Assets.Infrastructure.Physics
                     velocity = velocity,
                     rotation = rotation,
                     angularVelocity = angularVelocity,
-                    mass = _mass ?? 0,
-                    drag = _drag ?? 0,
-                    hasError = 0
+                    mass_drag_hasError = new float4(_mass ?? 0, _drag ?? 0, 0, 0)
                 };
                 return index;
             }
@@ -130,26 +129,36 @@ namespace Assets.Infrastructure.Physics
         private void ReadResults()
         {
             Main_Buffer[] results = new Main_Buffer[countSize];
-            readBuffer.GetData(results, 0, 0, countSize);
+            sendBuffer.GetData(results, 0, 0, countSize);
 
             foreach (var (index, obj) in slovaric)
             {
-                if (results[index].hasError == 0)
+                if (results[index].mass_drag_hasError.z == 0)
                 {
+                    var segment = results[index];
+
                     obj.transform.position = new Vector3(
-                        results[index].position.x,
-                        results[index].position.y,
-                        results[index].position.z
+                        segment.position.x,
+                        segment.position.y,
+                        segment.position.z
                     );
                     obj.transform.rotation = Quaternion.Euler(
-                        results[index].rotation.x,
-                        results[index].rotation.y,
-                        results[index].rotation.z
+                        segment.rotation.x,
+                        segment.rotation.y,
+                        segment.rotation.z
                     );
-                    toSendBuffer[index].velocity = results[index].velocity;
-                    toSendBuffer[index].angularVelocity = results[index].angularVelocity;
-                    toSendBuffer[index].mass = results[index].mass;
-                    toSendBuffer[index].drag = results[index].drag;
+                    toSendBuffer[index].velocity = segment.velocity;
+                    toSendBuffer[index].angularVelocity = segment.angularVelocity;
+                    toSendBuffer[index].mass_drag_hasError.x = segment.mass_drag_hasError.x;
+                    toSendBuffer[index].mass_drag_hasError.y = segment.mass_drag_hasError.y;
+
+                    var pbObj = obj.GetComponent<PhisicsBody>();
+
+                    pbObj.velocity = segment.velocity;
+                    pbObj.angularVelocity = segment.angularVelocity;
+
+                    pbObj.mass = segment.mass_drag_hasError.x;
+                    pbObj.drag = segment.mass_drag_hasError.y;
                 }
             }
         }

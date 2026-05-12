@@ -29,7 +29,7 @@ namespace Assets.Infrastructure.Physics.GPU
             var obj = gameObject;
             gravityIndex = phisics.AddToBuffer(
                 gObject: obj,
-                _id: new int4(2, 0, 0, 0),
+                _id: new float4(3, 1, 1, 1),
                 _position: obj.transform.position
             );
         }

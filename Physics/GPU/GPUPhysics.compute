@@ -2,14 +2,12 @@
 
 struct Main_Buffer
 {
-    int4 id;
+    float4 id;
     float4 position;
     float4 velocity;
     float4 rotation;
     float4 angularVelocity;
-    float mass;
-    float drag;
-    int hasError;
+    float4 mass_drag_hasError;
 };
 
 RWStructuredBuffer<Main_Buffer> _Buffer;
@@ -17,37 +15,37 @@ RWStructuredBuffer<Main_Buffer> _Buffer;
 float _DeltaTime;
 float3 _Gravity;
 
-void Drag(inout Main_Buffer _bufferSegment) // 1
+void Drag(inout Main_Buffer _bufferSegment) // 2
 {
     Main_Buffer bufferSegment = _bufferSegment;
-    float dragFactor = 1.0 - bufferSegment.drag * _DeltaTime;
+    float dragFactor = 1.0 - bufferSegment.mass_drag_hasError.y * _DeltaTime;
     bufferSegment.velocity.xyz *= dragFactor;
     bufferSegment.angularVelocity.xyz *= dragFactor;
-    bufferSegment.hasError = 0;
+    bufferSegment.mass_drag_hasError.z = 0;
     _bufferSegment = bufferSegment;
 }
 
-void Gravity(inout Main_Buffer _bufferSegment) // 2
+void Gravity(inout Main_Buffer _bufferSegment) // 3
 {
     Main_Buffer bufferSegment = _bufferSegment;
-    bufferSegment.velocity.xyz += _Gravity * _DeltaTime;
-    bufferSegment.position.xyz += bufferSegment.velocity.xyz;
-    bufferSegment.hasError = 0;
+    bufferSegment.velocity.y += _Gravity.y * _DeltaTime;
+    bufferSegment.position.y += bufferSegment.velocity.y * _DeltaTime;
+    bufferSegment.mass_drag_hasError.z = 0;
     _bufferSegment = bufferSegment;
 }
 
-void Move(inout Main_Buffer _bufferSegment) // 3
+void Move(inout Main_Buffer _bufferSegment) // 4
 {
     Main_Buffer bufferSegment = _bufferSegment;
     bufferSegment.position.xyz += bufferSegment.velocity.xyz * _DeltaTime;
     bufferSegment.rotation.xyz += bufferSegment.angularVelocity.xyz * _DeltaTime;
-    bufferSegment.hasError = 0;
+    bufferSegment.mass_drag_hasError.z = 0;
     _bufferSegment = bufferSegment;
 }
 
 void Default(inout Main_Buffer _bufferSegment) // default
 {
-    _bufferSegment.hasError = 1;
+    _bufferSegment.mass_drag_hasError.z = 1;
 }
 
 [numthreads(64, 1, 1)]
@@ -59,14 +57,16 @@ void Physics(uint3 id : SV_DispatchThreadID)
     {  
         switch (bufferSegment.id[i])
         {
-            case 1:
+            case 2:
                 Drag(bufferSegment);
                 break;
-            case 2:
+            case 3:
                 Gravity(bufferSegment);
                 break;
-            case 3:
+            case 4:
                 Move(bufferSegment);
+                break;
+            case 1:
                 break;
             default:
                 Default(bufferSegment);
