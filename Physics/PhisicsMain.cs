@@ -34,6 +34,7 @@ namespace Assets.Infrastructure.Physics
 
         private int groups;
 
+
         private Main_Buffer[] toSendBuffer;
         void Awake()
         {
@@ -53,14 +54,19 @@ namespace Assets.Infrastructure.Physics
 
             System.Array.Clear(toSendBuffer, 0, toSendBuffer.Length);
         }
-        private void Update()
+        private void FixedUpdate()
         {
             sendBuffer.SetData(toSendBuffer);
-            computeShader.SetFloat("_DeltaTime", Time.deltaTime);
+
+            computeShader.SetFloat("_DeltaTime", Time.fixedDeltaTime);
             computeShader.SetBuffer(kernel, "_Buffer", sendBuffer);
             computeShader.Dispatch(kernel, groups, 1, 1);
 
-            ReadResults();
+            ReadResults(readBuffer);
+
+            var temp = sendBuffer;
+            sendBuffer = readBuffer;
+            readBuffer = temp;
         }
 
         public int AddToBuffer(
@@ -126,39 +132,33 @@ namespace Assets.Infrastructure.Physics
             toSendBuffer[index] = new Main_Buffer();
             freeSlots.Push(index);
         }
-        private void ReadResults()
+        private void ReadResults(ComputeBuffer buffer)
         {
             Main_Buffer[] results = new Main_Buffer[countSize];
-            sendBuffer.GetData(results, 0, 0, countSize);
+            buffer.GetData(results, 0, 0, countSize);
 
             foreach (var (index, obj) in slovaric)
             {
                 if (results[index].mass_drag_hasError.z == 0)
                 {
                     var segment = results[index];
+                    obj.transform.position = new Vector3(segment.position.x, segment.position.y, segment.position.z);
+                    obj.transform.rotation = Quaternion.Euler(segment.rotation.x, segment.rotation.y, segment.rotation.z);
 
-                    obj.transform.position = new Vector3(
-                        segment.position.x,
-                        segment.position.y,
-                        segment.position.z
-                    );
-                    obj.transform.rotation = Quaternion.Euler(
-                        segment.rotation.x,
-                        segment.rotation.y,
-                        segment.rotation.z
-                    );
+                    toSendBuffer[index].position = new float4(segment.position.x, segment.position.y, segment.position.z, 0);
                     toSendBuffer[index].velocity = segment.velocity;
                     toSendBuffer[index].angularVelocity = segment.angularVelocity;
                     toSendBuffer[index].mass_drag_hasError.x = segment.mass_drag_hasError.x;
                     toSendBuffer[index].mass_drag_hasError.y = segment.mass_drag_hasError.y;
 
                     var pbObj = obj.GetComponent<PhisicsBody>();
-
-                    pbObj.velocity = segment.velocity;
-                    pbObj.angularVelocity = segment.angularVelocity;
-
-                    pbObj.mass = segment.mass_drag_hasError.x;
-                    pbObj.drag = segment.mass_drag_hasError.y;
+                    if (pbObj != null)
+                    {
+                        pbObj.velocity = segment.velocity;
+                        pbObj.angularVelocity = segment.angularVelocity;
+                        pbObj.mass = segment.mass_drag_hasError.x;
+                        pbObj.drag = segment.mass_drag_hasError.y;
+                    }
                 }
             }
         }
