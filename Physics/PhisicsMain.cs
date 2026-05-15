@@ -15,61 +15,88 @@ namespace Assets.Infrastructure.Physics
         public float4 angularVelocity;
         public float4 mass_drag_hasError;
     };
+    struct Add_Buffer
+    {
+        public float4 data0;
+        public float4 data1;
+        public float4 data2;
+        public float4 data3;
+    }
     public class PhisicsMain : MonoBehaviour
     {
         public int countSize = 1000;
-        public int strideOfBuffer;
+        public int strideOfMain_Buffer;
+        public int strideOfAdd_Buffer;
 
         public ComputeShader computeShader;
 
         public Vector3 Gravity = new Vector3(0, -9.8f, 0);
 
         private Dictionary<int, GameObject> slovaric = new();
-        Stack<int> freeSlots;
+
+        Stack<int> freeSlotsMain;
+        Stack<int> freeSlotsAdd;
 
         private int kernel;
 
-        private ComputeBuffer readBuffer;
-        private ComputeBuffer sendBuffer;
+        private ComputeBuffer readMain_Buffer;
+        private ComputeBuffer sendMain_Buffer;
+
+        private ComputeBuffer sendAdd_Buffer;
 
         private int groups;
 
+        private Main_Buffer[] main_Buffers;
+        private Add_Buffer[] add_Buffers;
 
-        private Main_Buffer[] toSendBuffer;
         void Awake()
         {
-            freeSlots = new Stack<int>(countSize);
+            freeSlotsMain = new Stack<int>(countSize);
+            freeSlotsAdd = new Stack<int>(countSize);
+
             for (int i = countSize - 1; i >= 0; i--)
             {
-                freeSlots.Push(i);
+                freeSlotsMain.Push(i);
+                freeSlotsAdd.Push(i);
             }
-            strideOfBuffer = Marshal.SizeOf<Main_Buffer>();
+
+            strideOfMain_Buffer = Marshal.SizeOf<Main_Buffer>();
+            strideOfAdd_Buffer = Marshal.SizeOf<Add_Buffer>();
+
             groups = Mathf.CeilToInt(countSize / 64f);
-            readBuffer = new ComputeBuffer(countSize, strideOfBuffer);
-            sendBuffer = new ComputeBuffer(countSize, strideOfBuffer);
-            toSendBuffer = new Main_Buffer[countSize];
+
+            readMain_Buffer = new ComputeBuffer(countSize, strideOfMain_Buffer);
+            sendMain_Buffer = new ComputeBuffer(countSize, strideOfMain_Buffer);
+            main_Buffers = new Main_Buffer[countSize];
+
+            sendAdd_Buffer = new ComputeBuffer(countSize, strideOfAdd_Buffer);
+            add_Buffers = new Add_Buffer[countSize];
 
             kernel = computeShader.FindKernel("Physics");
             computeShader.SetVector("_Gravity", Gravity);
 
-            System.Array.Clear(toSendBuffer, 0, toSendBuffer.Length);
+            System.Array.Clear(main_Buffers, 0, main_Buffers.Length);
+            System.Array.Clear(add_Buffers, 0, add_Buffers.Length);
         }
+
         private void FixedUpdate()
         {
-            sendBuffer.SetData(toSendBuffer);
+            sendMain_Buffer.SetData(main_Buffers);
+            sendAdd_Buffer.SetData(add_Buffers);
 
             computeShader.SetFloat("_DeltaTime", Time.fixedDeltaTime);
-            computeShader.SetBuffer(kernel, "_Buffer", sendBuffer);
+            computeShader.SetBuffer(kernel, "main_Buffer", sendMain_Buffer);
+            computeShader.SetBuffer(kernel, "add_Buffer", sendAdd_Buffer);
             computeShader.Dispatch(kernel, groups, 1, 1);
 
-            ReadResults(readBuffer);
+            ReadResults(readMain_Buffer);
 
-            var temp = sendBuffer;
-            sendBuffer = readBuffer;
-            readBuffer = temp;
+            var temp = sendMain_Buffer;
+            sendMain_Buffer = readMain_Buffer;
+            readMain_Buffer = temp;
         }
 
-        public int AddToBuffer(
+        public int AddToMainBuffer(
             GameObject gObject,
             float4 _id,
             Vector3? _position = null,
@@ -80,9 +107,9 @@ namespace Assets.Infrastructure.Physics
             float? _drag = 0
             )
         {
-            if (freeSlots == null || freeSlots.Count == 0) return -1;
+            if (freeSlotsMain == null || freeSlotsMain.Count == 0) return -1;
 
-            if (freeSlots.TryPop(out int index))
+            if (freeSlotsMain.TryPop(out int index))
             {
                 slovaric.Add(index, gObject);
 
@@ -114,7 +141,7 @@ namespace Assets.Infrastructure.Physics
                     angularVelocity = new float4(angVel.x, angVel.y, angVel.z, 0);
                 }
 
-                toSendBuffer[index] = new Main_Buffer
+                main_Buffers[index] = new Main_Buffer
                 {
                     id = _id,
                     position = position,
@@ -127,11 +154,38 @@ namespace Assets.Infrastructure.Physics
             }
             return -1;
         }
-        public void DeliteOFBuffer(int index)
+        public int AddToAddBuffer(
+         float4 data0,
+         float4 data1,
+         float4 data2,
+         float4 data3)
         {
-            toSendBuffer[index] = new Main_Buffer();
-            freeSlots.Push(index);
+            if (freeSlotsAdd == null || freeSlotsAdd.Count == 0) return -1;
+            if (freeSlotsAdd.TryPop(out int index))
+            {
+                add_Buffers[index] = new Add_Buffer
+                {
+                    data0 = data0,
+                    data1 = data1,
+                    data2 = data2,
+                    data3 = data3
+                };
+                return index;
+            }
+            return -1;
         }
+
+        public void DeliteOfMainBuffer(int index)
+        {
+            main_Buffers[index] = new Main_Buffer();
+            freeSlotsMain.Push(index);
+        }
+        public void DeliteOfAddBuffer(int index)
+        {
+            main_Buffers[index] = new Main_Buffer();
+            freeSlotsMain.Push(index);
+        }
+
         private void ReadResults(ComputeBuffer buffer)
         {
             Main_Buffer[] results = new Main_Buffer[countSize];
@@ -142,14 +196,23 @@ namespace Assets.Infrastructure.Physics
                 if (results[index].mass_drag_hasError.z == 0)
                 {
                     var segment = results[index];
-                    obj.transform.position = new Vector3(segment.position.x, segment.position.y, segment.position.z);
-                    obj.transform.rotation = Quaternion.Euler(segment.rotation.x, segment.rotation.y, segment.rotation.z);
+                    if (segment.position.w == 1)
+                    {
+                        obj.transform.position = new Vector3(segment.position.x, segment.position.y, segment.position.z);
+                        main_Buffers[index].position = new float4(segment.position.x, segment.position.y, segment.position.z, segment.position.w);
+                    }
+                    if (segment.rotation.w == 1)
+                    {
+                        obj.transform.rotation = Quaternion.Euler(segment.rotation.x, segment.rotation.y, segment.rotation.z);
+                        main_Buffers[index].rotation = new float4(segment.rotation.x, segment.rotation.y, segment.rotation.z, segment.rotation.w);
+                    }
+                    if (segment.velocity.w == 1)
+                        main_Buffers[index].velocity = segment.velocity;
+                    if (segment.angularVelocity.w == 1)
+                        main_Buffers[index].angularVelocity = segment.angularVelocity;
 
-                    toSendBuffer[index].position = new float4(segment.position.x, segment.position.y, segment.position.z, 0);
-                    toSendBuffer[index].velocity = segment.velocity;
-                    toSendBuffer[index].angularVelocity = segment.angularVelocity;
-                    toSendBuffer[index].mass_drag_hasError.x = segment.mass_drag_hasError.x;
-                    toSendBuffer[index].mass_drag_hasError.y = segment.mass_drag_hasError.y;
+                    main_Buffers[index].mass_drag_hasError.x = segment.mass_drag_hasError.x;
+                    main_Buffers[index].mass_drag_hasError.y = segment.mass_drag_hasError.y;
 
                     var pbObj = obj.GetComponent<PhisicsBody>();
                     if (pbObj != null)

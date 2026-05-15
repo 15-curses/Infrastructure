@@ -1,9 +1,15 @@
 ﻿using Assets.Infrastructure.ServiceLocator;
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace Assets.Infrastructure.Physics.GPU
 {
+    public enum PhisicsDeliteTypes
+    {
+        Gravity,
+        RunToOrbit
+    }
     public class PhisicsBody : MonoBehaviour
     {
         public float4 velocity;
@@ -15,7 +21,8 @@ namespace Assets.Infrastructure.Physics.GPU
 
         private PhisicsMain phisics;
 
-        private int gravityIndex;
+        private Dictionary<PhisicsDeliteTypes, int> indexValues = new();
+
         void Start()
         {
             phisics = ServiceContainer.Get<PhisicsMain>();
@@ -27,15 +34,23 @@ namespace Assets.Infrastructure.Physics.GPU
         public void AddGravity()
         {
             var obj = gameObject;
-            gravityIndex = phisics.AddToBuffer(
+            int gravityIndex = phisics.AddToMainBuffer(
                 gObject: obj,
                 _id: new float4(3, 1, 1, 1),
                 _position: obj.transform.position
             );
+            indexValues.Add(PhisicsDeliteTypes.Gravity, gravityIndex);
         }
-        public void DeliteGravity()
+        public void DelitePhisics(PhisicsDeliteTypes type)
         {
-            phisics.DeliteOFBuffer(gravityIndex);
+            if (indexValues.TryGetValue(type, out int index))
+            {
+                phisics.DeliteOfMainBuffer(index);
+            }
+        }
+        public void RunToOrbit()
+        {
+
         }
     }
 }
