@@ -54,21 +54,25 @@ void Default(inout Main_Buffer _bufferSegment) // default
 void OrbitCS(inout Main_Buffer _bufferSegment)
 {
     Main_Buffer mainBufferSegment = _bufferSegment;
-    Additional_Buffer addBufferSegment = add_Buffer
-        [mainBufferSegment.mass_drag_hasError_addBuffer.w];
+    Additional_Buffer addBufferSegment = add_Buffer[
+        mainBufferSegment.mass_drag_hasError_addBuffer.w];
     
     float2 mouseDelta = addBufferSegment.data0.xy;
+    float2 angle = addBufferSegment.data0.zw;
+    float torque = addBufferSegment.data1.x;
+    float radius = addBufferSegment.data1.y;
+    float3 center = addBufferSegment.data2.xyz;
     
-    float angleX = anglesX[id.x];
-    float angleY = anglesY[id.x];
+    float angleXRad = radians(angle.x + mouseDelta.x * torque);
+    float angleYRad = radians(angle.y + mouseDelta.y * torque);
+    angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
     
-    angleX += mouseDelta.x * torque;
-    angleY += mouseDelta.y * torque;
-    angleY = clamp(angleY, -1.39626, 1.39626);
+    float newAngleX = degrees(angleXRad);
+    float newAngleY = degrees(angleYRad);
     
     float cosX, sinX, cosY, sinY;
-    sincos(angleX, sinX, cosX);
-    sincos(angleY, sinY, cosY);
+    sincos(angleXRad, sinX, cosX);
+    sincos(angleYRad, sinY, cosY);
     
     float rCosY = radius * cosY;
     float3 position;
@@ -76,30 +80,22 @@ void OrbitCS(inout Main_Buffer _bufferSegment)
     position.y = center.y + radius * sinY;
     position.z = center.z - rCosY * cosX;
     
-    float3 forward = center - position;
-    float invLen = rsqrt(dot(forward, forward));
-    forward *= invLen;
+    mainBufferSegment.position.xyz = position;
+    mainBufferSegment.position.w = 1;
     
-    float3 right;
-    right.x = 0;
-    right.y = forward.z;
-    right.z = -forward.y;
-    right *= rsqrt(dot(right, right));
+    mainBufferSegment.rotation.x = newAngleX;
+    mainBufferSegment.rotation.y = newAngleY;
+    mainBufferSegment.rotation.z = 0;
+    mainBufferSegment.rotation.w = 1;
     
-    float3 up;
-    up.x = forward.y * right.z - forward.z * right.y;
-    up.y = forward.z * right.x - forward.x * right.z;
-    up.z = forward.x * right.y - forward.y * right.x;
+    angle.x = newAngleX;
+    angle.y = newAngleY;
+    addBufferSegment.data0.zw = angle;
     
-    mainBufferSegment.position = position;
-    mainBufferSegment.rotation.x = right;
-    mainBufferSegment.rotation.y = up;
-    mainBufferSegment.rotation.z = forward;
-    
-    anglesX[id.x] = angleX;
-    anglesY[id.x] = angleY;
+    mainBufferSegment.mass_drag_hasError_addBuffer.z = 0;
     
     _bufferSegment = mainBufferSegment;
+    add_Buffer[mainBufferSegment.mass_drag_hasError_addBuffer.w] = addBufferSegment;
 }
 
 [numthreads(64, 1, 1)]
@@ -111,6 +107,9 @@ void Physics(uint3 id : SV_DispatchThreadID)
     {
         switch (bufferSegment.id[i])
         {
+            case 1:
+                OrbitCS(bufferSegment);
+                break;
             case 2:
                 Drag(bufferSegment);
                 break;
@@ -120,7 +119,7 @@ void Physics(uint3 id : SV_DispatchThreadID)
             case 4:
                 Move(bufferSegment);
                 break;
-            case 1:
+            case 0:
                 break;
             default:
                 Default(bufferSegment);

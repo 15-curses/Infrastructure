@@ -13,7 +13,7 @@ namespace Assets.Infrastructure.Physics
         public float4 velocity;
         public float4 rotation;
         public float4 angularVelocity;
-        public float4 mass_drag_hasError;
+        public float4 mass_drag_hasError_addBuffer;
     };
     struct Add_Buffer
     {
@@ -148,7 +148,7 @@ namespace Assets.Infrastructure.Physics
                     velocity = velocity,
                     rotation = rotation,
                     angularVelocity = angularVelocity,
-                    mass_drag_hasError = new float4(_mass ?? 0, _drag ?? 0, 0, 0)
+                    mass_drag_hasError_addBuffer = new float4(_mass ?? 0, _drag ?? 0, 0, 0)
                 };
                 return index;
             }
@@ -193,7 +193,7 @@ namespace Assets.Infrastructure.Physics
 
             foreach (var (index, obj) in slovaric)
             {
-                if (results[index].mass_drag_hasError.z == 0)
+                if (results[index].mass_drag_hasError_addBuffer.z == 0)
                 {
                     var segment = results[index];
                     if (segment.position.w == 1)
@@ -204,23 +204,23 @@ namespace Assets.Infrastructure.Physics
                     if (segment.rotation.w == 1)
                     {
                         obj.transform.rotation = Quaternion.Euler(segment.rotation.x, segment.rotation.y, segment.rotation.z);
-                        main_Buffers[index].rotation = new float4(segment.rotation.x, segment.rotation.y, segment.rotation.z, segment.rotation.w);
+                        main_Buffers[index].rotation = segment.rotation;
                     }
                     if (segment.velocity.w == 1)
                         main_Buffers[index].velocity = segment.velocity;
                     if (segment.angularVelocity.w == 1)
                         main_Buffers[index].angularVelocity = segment.angularVelocity;
 
-                    main_Buffers[index].mass_drag_hasError.x = segment.mass_drag_hasError.x;
-                    main_Buffers[index].mass_drag_hasError.y = segment.mass_drag_hasError.y;
+                    main_Buffers[index].mass_drag_hasError_addBuffer.x = segment.mass_drag_hasError_addBuffer.x;
+                    main_Buffers[index].mass_drag_hasError_addBuffer.y = segment.mass_drag_hasError_addBuffer.y;
 
                     var pbObj = obj.GetComponent<PhisicsBody>();
                     if (pbObj != null)
                     {
                         pbObj.velocity = segment.velocity;
                         pbObj.angularVelocity = segment.angularVelocity;
-                        pbObj.mass = segment.mass_drag_hasError.x;
-                        pbObj.drag = segment.mass_drag_hasError.y;
+                        pbObj.mass = segment.mass_drag_hasError_addBuffer.x;
+                        pbObj.drag = segment.mass_drag_hasError_addBuffer.y;
                     }
                 }
             }
