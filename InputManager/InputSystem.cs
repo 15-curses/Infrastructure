@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Assets.Infrastructure.InputManager
@@ -25,6 +24,9 @@ namespace Assets.Infrastructure.InputManager
         private Action updateAction;
         private static Action<int, Action, Action, Action> bindAction;
         private static Action<int, Action, Action, Action> unbindAction;
+        private static Action<Action<Vector2>> subMouse;
+        private static Action<Action<Vector2>> unsubMouse;
+
         private static Func<int, bool> getKey;
         private static Func<int[], bool> getKeyDown;
         private static Func<int, bool> getKeyUp;
@@ -44,6 +46,9 @@ namespace Assets.Infrastructure.InputManager
                     updateAction = action0.Update;
                     bindAction = InputSystemWindows.Bind;
                     unbindAction = InputSystemWindows.Unbind;
+                    subMouse = InputSystemWindows.SubscribeMouseMove;
+                    unsubMouse = InputSystemWindows.UnsubscribeMouseMove;
+
                     getKey = InputSystemWindows.GetKey;
                     getKeyDown = InputSystemWindows.GetKeyDown;
                     getKeyUp = InputSystemWindows.GetKeyUp;
@@ -63,6 +68,9 @@ namespace Assets.Infrastructure.InputManager
                     updateAction = action1.Update;
                     bindAction = InputSystemX11.Bind;
                     unbindAction = InputSystemX11.Unbind;
+                    subMouse = InputSystemX11.SubscribeMouseMove;
+                    unsubMouse = InputSystemX11.UnsubscribeMouseMove;
+
                     getKey = InputSystemX11.GetKey;
                     getKeyDown = InputSystemX11.GetKeyDown;
                     getKeyUp = InputSystemX11.GetKeyUp;
@@ -82,6 +90,9 @@ namespace Assets.Infrastructure.InputManager
                     updateAction = action2.Update;
                     bindAction = InputSystemWayland.Bind;
                     unbindAction = InputSystemWayland.Unbind;
+                    subMouse = InputSystemWayland.SubscribeMouseMove;
+                    unsubMouse = InputSystemWayland.UnsubscribeMouseMove;
+
                     getKey = InputSystemWayland.GetKey;
                     getKeyDown = InputSystemWayland.GetKeyDown;
                     getKeyUp = InputSystemWayland.GetKeyUp;
@@ -109,6 +120,9 @@ namespace Assets.Infrastructure.InputManager
                     updateAction = action3.Update;
                     bindAction = InputSystemCarbon.Bind;
                     unbindAction = InputSystemCarbon.Unbind;
+                    subMouse = InputSystemCarbon.SubscribeMouseMove;
+                    unsubMouse = InputSystemCarbon.UnsubscribeMouseMove;
+
                     getKey = InputSystemCarbon.GetKey;
                     getKeyDown = InputSystemCarbon.GetKeyDown;
                     getKeyUp = InputSystemCarbon.GetKeyUp;
@@ -121,7 +135,6 @@ namespace Assets.Infrastructure.InputManager
 
                 case InputSystemType.Unknown:
                     // Неизвестная ОС
-
                     break;
             }
         }
@@ -135,42 +148,8 @@ namespace Assets.Infrastructure.InputManager
         public static bool GetKeyDown(int[] keyCode) => getKeyDown(keyCode);
         public static bool GetKeyUp(int keyCode) => getKeyUp(keyCode);
 
-        public void SubMouse(Action<Vector2> action)
-        {
-            switch(typeInputSystem)
-            {
-                case InputSystemType.WindowsUser32:
-                    InputSystemWindows.SubscribeMouseMove(action);
-                    break;
-                case InputSystemType.LinuxX11:
-                    InputSystemX11.SubscribeMouseMove(action);
-                    break;
-                case InputSystemType.LinuxWayland:
-                    InputSystemWayland.SubscribeMouseMove(action);
-                    break;
-                case InputSystemType.MacCarbon:
-                    InputSystemCarbon.SubscribeMouseMove(action);
-                    break;
-            }
-        }
-        public void UnsubMouse(Action<Vector2> action)
-        {
-            switch (typeInputSystem)
-            {
-                case InputSystemType.WindowsUser32:
-                    InputSystemWindows.UnsubscribeMouseMove(action);
-                    break;
-                case InputSystemType.LinuxX11:
-                    InputSystemX11.UnsubscribeMouseMove(action);
-                    break;
-                case InputSystemType.LinuxWayland:
-                    InputSystemWayland.UnsubscribeMouseMove(action);
-                    break;
-                case InputSystemType.MacCarbon:
-                    InputSystemCarbon.UnsubscribeMouseMove(action);
-                    break;
-            }
-        }
+        public static void SubMouse(Action<Vector2> action) => subMouse(action);
+        public static void UnsubMouse(Action<Vector2> action) => unsubMouse(action);
 
         public static InputSystemType GetInputSystemType()
         {
@@ -213,6 +192,7 @@ namespace Assets.Infrastructure.InputManager
             return InputSystemType.Unknown;
         }
     }
+
     public class InputSystemWindows
     {
         [DllImport("user32.dll")]
@@ -260,7 +240,6 @@ namespace Assets.Infrastructure.InputManager
                 _onJustReleased[keyCode] += onUp;
             }
         }
-
         public static void Unbind(int keyCode, Action onDown = null, Action onHold = null, Action onUp = null)
         {
             if (onDown != null && _onJustPressed.ContainsKey(keyCode))
@@ -291,7 +270,6 @@ namespace Assets.Infrastructure.InputManager
 
         public static void SubscribeMouseMove(Action<Vector2> handler) => OnMouseMove += handler;
         public static void UnsubscribeMouseMove(Action<Vector2> handler) => OnMouseMove -= handler;
-        
 
         public void Update()
         {
@@ -672,7 +650,7 @@ namespace Assets.Infrastructure.InputManager
 
         public static void SubscribeMouseMove(Action<Vector2> handler) => OnMouseMove += handler;
         public static void UnsubscribeMouseMove(Action<Vector2> handler) => OnMouseMove -= handler;
-        
+
         public void Update()
         {
             _previous = (byte[])_current.Clone();
