@@ -1,10 +1,9 @@
-﻿using Assets.Infrastructure.Physics.GPU;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Assets.Infrastructure.Physics
+namespace Assets.Infrastructure.Physics.GPU
 {
     struct Main_Buffer
     {
@@ -179,11 +178,16 @@ namespace Assets.Infrastructure.Physics
         {
             main_Buffers[index] = new Main_Buffer();
             freeSlotsMain.Push(index);
+            if (slovaric.ContainsKey(index))
+            {
+                slovaric.Remove(index);
+            }
         }
         public void DeliteOfAddBuffer(int index)
         {
             main_Buffers[index] = new Main_Buffer();
             freeSlotsMain.Push(index);
+
         }
 
         private void ReadResults(ComputeBuffer buffer)

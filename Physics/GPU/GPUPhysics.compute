@@ -57,45 +57,53 @@ void OrbitCS(inout Main_Buffer _bufferSegment)
     Additional_Buffer addBufferSegment = add_Buffer[
         mainBufferSegment.mass_drag_hasError_addBuffer.w];
     
-    float2 mouseDelta = addBufferSegment.data0.xy;
-    float2 angle = addBufferSegment.data0.zw;
-    float torque = addBufferSegment.data1.x;
-    float radius = addBufferSegment.data1.y;
-    float3 center = addBufferSegment.data2.xyz;
+    float flag = addBufferSegment.data2.w;
     
-    float angleXRad = radians(angle.x + mouseDelta.x * torque);
-    float angleYRad = radians(angle.y + mouseDelta.y * torque);
-    angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
+    if (flag)
+    {
+        flag = 0;
     
-    float newAngleX = degrees(angleXRad);
-    float newAngleY = degrees(angleYRad);
+        float2 mouseDelta = addBufferSegment.data0.xy;
+        float2 angle = addBufferSegment.data0.zw;
+        float torque = addBufferSegment.data1.x;
+        float radius = addBufferSegment.data1.y;
+        float3 center = addBufferSegment.data2.xyz;
     
-    float cosX, sinX, cosY, sinY;
-    sincos(angleXRad, sinX, cosX);
-    sincos(angleYRad, sinY, cosY);
+        float angleXRad = radians(angle.x + mouseDelta.x * torque);
+        float angleYRad = radians(angle.y + mouseDelta.y * torque);
+        angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
     
-    float rCosY = radius * cosY;
-    float3 position;
-    position.x = center.x - rCosY * sinX;
-    position.y = center.y + radius * sinY;
-    position.z = center.z - rCosY * cosX;
+        float newAngleX = degrees(angleXRad);
+        float newAngleY = degrees(angleYRad);
     
-    mainBufferSegment.position.xyz = position;
-    mainBufferSegment.position.w = 1;
+        float cosX, sinX, cosY, sinY;
+        sincos(angleXRad, sinX, cosX);
+        sincos(angleYRad, sinY, cosY);
     
-    mainBufferSegment.rotation.x = newAngleX;
-    mainBufferSegment.rotation.y = newAngleY;
-    mainBufferSegment.rotation.z = 0;
-    mainBufferSegment.rotation.w = 1;
+        float rCosY = radius * cosY;
+        float3 position;
+        position.x = center.x - rCosY * sinX;
+        position.y = center.y + radius * sinY;
+        position.z = center.z - rCosY * cosX;
     
-    angle.x = newAngleX;
-    angle.y = newAngleY;
-    addBufferSegment.data0.zw = angle;
+        mainBufferSegment.position.xyz = position;
+        mainBufferSegment.position.w = 1;
     
-    mainBufferSegment.mass_drag_hasError_addBuffer.z = 0;
+        mainBufferSegment.rotation.x = newAngleX;
+        mainBufferSegment.rotation.y = newAngleY;
+        mainBufferSegment.rotation.z = 0;
+        mainBufferSegment.rotation.w = 1;
     
-    _bufferSegment = mainBufferSegment;
-    add_Buffer[mainBufferSegment.mass_drag_hasError_addBuffer.w] = addBufferSegment;
+        angle.x = newAngleX;
+        angle.y = newAngleY;
+        addBufferSegment.data0.zw = angle;
+    
+        mainBufferSegment.mass_drag_hasError_addBuffer.z = 0;
+    
+        _bufferSegment = mainBufferSegment;
+        add_Buffer[mainBufferSegment.mass_drag_hasError_addBuffer.w] = addBufferSegment;
+    }
+    _bufferSegment.mass_drag_hasError_addBuffer.z = 0;
 }
 
 [numthreads(64, 1, 1)]
