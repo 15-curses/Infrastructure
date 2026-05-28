@@ -1,4 +1,4 @@
-﻿namespace Assets.Infrastructure.InputManager
+﻿namespace Assets.Infrastructure.InputManager.KeyCodes
 {
     public class KeyCodeWayland
     {

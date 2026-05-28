@@ -1,14 +1,14 @@
-﻿namespace Assets.Infrastructure.InputManager
+﻿namespace Assets.Infrastructure.InputManager.KeyCodes
 {
-    public class KeyCodeLibX11
+    public class KeyCodeWindows
     {
         public void KeyCodeInitialization()
         {
             KeyCode.Space = 0x20;
-            KeyCode.Enter = 0xFF0D;
-            KeyCode.Escape = 0xFF1B;
-            KeyCode.Tab = 0xFF09;
-            KeyCode.Backspace = 0xFF08;
+            KeyCode.Enter = 0x0D;
+            KeyCode.Escape = 0x1B;
+            KeyCode.Tab = 0x09;
+            KeyCode.Backspace = 0x08;
 
             KeyCode.A = 0x41;
             KeyCode.B = 0x42;
@@ -48,16 +48,16 @@
             KeyCode.D8 = 0x38;
             KeyCode.D9 = 0x39;
 
-            KeyCode.LeftShift = 0xFFE1;
-            KeyCode.RightShift = 0xFFE2;
-            KeyCode.LeftCtrl = 0xFFE3;
-            KeyCode.RightCtrl = 0xFFE4;
-            KeyCode.LeftAlt = 0xFFE9;
-            KeyCode.RightAlt = 0xFFEA;
+            KeyCode.LeftShift = 0xA0;
+            KeyCode.RightShift = 0xA1;
+            KeyCode.LeftCtrl = 0xA2;
+            KeyCode.RightCtrl = 0xA3;
+            KeyCode.LeftAlt = 0xA4;
+            KeyCode.RightAlt = 0xA5;
 
-            KeyCode.MouseLeft = 1;
-            KeyCode.MouseRight = 3;
-            KeyCode.MouseMiddle = 2;
+            KeyCode.MouseLeft = 0x01;
+            KeyCode.MouseRight = 0x02;
+            KeyCode.MouseMiddle = 0x04;
         }
     }
 }

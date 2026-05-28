@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Assets.Infrastructure.InputManager;
+using System;
 using System.Runtime.InteropServices;
+using UnityEditor.EditorTools;
 using UnityEngine;
 
 namespace Assets.Infrastructure.Phisics
@@ -37,9 +39,12 @@ namespace Assets.Infrastructure.Phisics
             InitializeComputeBuffers();
             InitializeDataArrays();
             SetupComputeShader();
-        }
 
-        
+            InputSystem.SubMouse(MouseUpdate);
+        }
+        private void MouseUpdate(Vector2 mouseDelta)
+            => _physicsComputeShader.SetFloats("_MouseDelta", mouseDelta.x, mouseDelta.y);
+
         private void InitializeBufferSizes()
         {
             _mainBufferStride = Marshal.SizeOf<MainBufferData>();
@@ -77,7 +82,7 @@ namespace Assets.Infrastructure.Phisics
             ReadResultsFromBuffer();
             SwapBuffers();
         }
-
+        
         private void SendDataToBuffers()
         {
             _writeMainBuffer.SetData(_mainBufferData);
@@ -91,7 +96,6 @@ namespace Assets.Infrastructure.Phisics
             _physicsComputeShader.SetBuffer(_computeKernelId, "AdditionalBuffer", _additionalBuffer);
             _physicsComputeShader.Dispatch(_computeKernelId, _threadGroupsCount, 1, 1);
         }
-        #endregion
 
         private void ReadResultsFromBuffer()
         {
@@ -213,43 +217,50 @@ namespace Assets.Infrastructure.Phisics
         private void UpdateAngularVelocityOnly(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyAngularVelocity(data, body);
         }
 
         private void UpdateVelocityOnly(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyVelocity(data, body);
         }
 
         private void UpdateRotationOnly(int index, GameObject obj, MainBufferData data)
         {
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, false);
         }
 
         private void UpdatePositionOnly(int index, GameObject obj, MainBufferData data)
         {
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, false);
         }
 
         private void UpdateMassDataOnly(int index, GameObject obj, MainBufferData data)
         {
-            _mainBufferData[index].MassDragAdditionalFlags.x = data.MassDragAdditionalFlags.x;
-            _mainBufferData[index].MassDragAdditionalFlags.y = data.MassDragAdditionalFlags.y;
-            _mainBufferData[index].MassDragAdditionalFlags.z = data.MassDragAdditionalFlags.z;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
         #endregion
+
         #region Группа 2: два компонента
         private void UpdateVelocityAngularVelocity(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+            }
         }
 
         private void UpdateRotationAngularVelocity(int index, GameObject obj, MainBufferData data)
@@ -257,7 +268,8 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyAngularVelocity(data, body);
         }
 
         private void UpdateRotationVelocity(int index, GameObject obj, MainBufferData data)
@@ -265,7 +277,8 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyVelocity(data, body);
         }
 
         private void UpdatePositionAngularVelocity(int index, GameObject obj, MainBufferData data)
@@ -273,7 +286,8 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyAngularVelocity(data, body);
         }
 
         private void UpdatePositionVelocity(int index, GameObject obj, MainBufferData data)
@@ -281,7 +295,8 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyVelocity(data, body);
         }
 
         private void UpdatePositionRotation(int index, GameObject obj, MainBufferData data)
@@ -290,9 +305,9 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, false);
         }
         #endregion
+
         #region Группа 3: три компонента
         private void UpdateRotationVelocityAngularVelocity(int index, GameObject obj, MainBufferData data)
         {
@@ -300,7 +315,11 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+            }
         }
 
         private void UpdatePositionVelocityAngularVelocity(int index, GameObject obj, MainBufferData data)
@@ -309,7 +328,11 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+            }
         }
 
         private void UpdatePositionRotationAngularVelocity(int index, GameObject obj, MainBufferData data)
@@ -319,7 +342,8 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyAngularVelocity(data, body);
         }
 
         private void UpdatePositionRotationVelocity(int index, GameObject obj, MainBufferData data)
@@ -329,7 +353,8 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+                UpdatePhysicsBodyVelocity(data, body);
         }
 
         private void UpdateAllExceptMass(int index, GameObject obj, MainBufferData data)
@@ -340,47 +365,77 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, false);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+            }
         }
         #endregion
+
         #region Группа 4: с массой (один компонент + масса)
         private void UpdateAngularVelocityMass(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdateVelocityMass(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdateRotationMass(int index, GameObject obj, MainBufferData data)
         {
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionMass(int index, GameObject obj, MainBufferData data)
         {
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
         #endregion
+
         #region Группа 5: с массой (два компонента + масса)
         private void UpdateVelocityAngularVelocityMass(int index, GameObject obj, MainBufferData data)
         {
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdateRotationAngularVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -388,8 +443,13 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdateRotationVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -397,8 +457,13 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionAngularVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -406,8 +471,13 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -415,8 +485,13 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.position = new Vector3(data.Position.x, data.Position.y, data.Position.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionRotationMass(int index, GameObject obj, MainBufferData data)
@@ -425,10 +500,15 @@ namespace Assets.Infrastructure.Phisics
             obj.transform.rotation = Quaternion.Euler(data.Rotation.x, data.Rotation.y, data.Rotation.z);
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
         #endregion
+
         #region Группа 6: с массой (три компонента + масса)
         private void UpdateRotationVelocityAngularVelocityMass(int index, GameObject obj, MainBufferData data)
         {
@@ -436,8 +516,14 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionVelocityAngularVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -446,8 +532,14 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionRotationAngularVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -457,8 +549,13 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, false, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
 
         private void UpdatePositionRotationVelocityMass(int index, GameObject obj, MainBufferData data)
@@ -468,10 +565,16 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Position = data.Position;
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, false, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
         #endregion
+
         #region Группа 7: всё
         private void UpdateAll(int index, GameObject obj, MainBufferData data)
         {
@@ -481,37 +584,28 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index].Rotation = data.Rotation;
             _mainBufferData[index].Velocity = data.Velocity;
             _mainBufferData[index].AngularVelocity = data.AngularVelocity;
-            UpdateMassData(index, data);
-            UpdatePhysicsBodyComponentPartial(obj, data, true, true, true);
+            UpdateMassDragAdditionalData(index, data);
+            if (_poolManager.TryGetPhysicsBody(index, out var body))
+            {
+                UpdatePhysicsBodyVelocity(data, body);
+                UpdatePhysicsBodyAngularVelocity(data, body);
+                UpdatePhysicsBodyMass(data, body);
+                UpdatePhysicsBodyDrag(data, body);
+            }
         }
         #endregion
 
-        private void UpdateMassData(int index, MainBufferData data)
+        private void UpdateMassDragAdditionalData(int index, MainBufferData data)
         {
             _mainBufferData[index].MassDragAdditionalFlags.x = data.MassDragAdditionalFlags.x;
             _mainBufferData[index].MassDragAdditionalFlags.y = data.MassDragAdditionalFlags.y;
             _mainBufferData[index].MassDragAdditionalFlags.z = data.MassDragAdditionalFlags.z;
         }
 
-        private void UpdatePhysicsBodyComponentPartial(GameObject obj, MainBufferData data,
-            bool updateVelocity, bool updateAngularVelocity, bool updateMass)
-        {
-            var physicsBody = obj.GetComponent<PhysicsBody>();
-            if (physicsBody != null)
-            {
-                if (updateVelocity)
-                    physicsBody.Velocity = data.Velocity.xyz;
-
-                if (updateAngularVelocity)
-                    physicsBody.AngularVelocity = data.AngularVelocity.xyz;
-
-                if (updateMass)
-                {
-                    physicsBody.Mass = data.MassDragAdditionalFlags.x;
-                    physicsBody.Drag = data.MassDragAdditionalFlags.y;
-                }
-            }
-        }
+        private void UpdatePhysicsBodyMass(MainBufferData data, PhysicsBody body) => body.Mass = data.MassDragAdditionalFlags.x;
+        private void UpdatePhysicsBodyDrag(MainBufferData data, PhysicsBody body) => body.Drag = data.MassDragAdditionalFlags.y;
+        private void UpdatePhysicsBodyVelocity(MainBufferData data, PhysicsBody body) => body.Velocity = data.Velocity.xyz;
+        private void UpdatePhysicsBodyAngularVelocity(MainBufferData data, PhysicsBody body) => body.AngularVelocity = data.AngularVelocity.xyz;
 
         private void SwapBuffers()
         {
@@ -519,6 +613,7 @@ namespace Assets.Infrastructure.Phisics
             _writeMainBuffer = _readMainBuffer;
             _readMainBuffer = temp;
         }
+        #endregion
         #endregion
 
         private void OnDestroy()
@@ -529,17 +624,19 @@ namespace Assets.Infrastructure.Phisics
         }
 
         #region ЛОГИКА ДОБАВЛЕНИЯ И УДАЛЕНИЯ ОБЕКТА
-        public int AddPhysicsObject(GameObject gameObject, MainBufferData initialData)
+        public int AddPhysicsObject(GameObject gameObject, MainBufferData initialData, PhysicsBody body)
         {
             if (!_poolManager.TryGetMainSlot(out int index))
                 return -1;
 
-            _mainBufferData[index] = initialData;
             _poolManager.RegisterGameObject(index, gameObject);
 
-            // Добавить PhysicsBody если нет
-            if (gameObject.GetComponent<PhysicsBody>() == null)
-                gameObject.AddComponent<PhysicsBody>();
+            var physicsBody = body 
+                ?? gameObject.GetComponent<PhysicsBody>() 
+                ?? gameObject.AddComponent<PhysicsBody>();
+
+            _poolManager.RegisterPhysicsBody(index, physicsBody);
+            _mainBufferData[index] = initialData;
 
             return index;
         }
@@ -551,6 +648,20 @@ namespace Assets.Infrastructure.Phisics
             _mainBufferData[index] = new MainBufferData();
             _poolManager.ReturnMainSlot(index);
         }
+
+        public int RegisterAdditionalSlot(AdditionalBufferData additionalData)
+        {
+            if (_poolManager.TryGetAdditionalSlot(out int additionalIndex))
+            {
+                _additionalBufferData[additionalIndex] = additionalData;
+                return additionalIndex;
+            }
+            return -1;
+
+        }    
+        public void LinkAdditionalToMain(int mainBuferIndex, int additionalIndex)
+            => _poolManager.RegisterUnificationOfBuffers(mainBuferIndex, additionalIndex);
+        
         #endregion
 
         #region Публичные методы для управления

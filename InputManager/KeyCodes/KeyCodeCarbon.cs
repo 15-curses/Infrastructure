@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Assets.Infrastructure.InputManager
+namespace Assets.Infrastructure.InputManager.KeyCodes
 {
     public class KeyCodeCarbon
     {

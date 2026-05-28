@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using Assets.Infrastructure.InputManager.KeyCodes;
 
 namespace Assets.Infrastructure.InputManager
 {

@@ -2,6 +2,7 @@
 using Assets.Infrastructure.Core;
 using Assets.Infrastructure.InputManager;
 using Assets.Infrastructure.ObjectManager;
+using Assets.Infrastructure.Phisics;
 using Assets.Tools.Console.Logic;
 using UnityEngine;
 
@@ -19,6 +20,8 @@ namespace Assets.Infrastructure.ServiceLocator
             ServiceContainer.RegisterMonoSingleton<InputSystem>();
             ServiceContainer.RegisterMonoSingleton<BallControl>();
             ServiceContainer.RegisterMonoSingleton<CueController>();
+            ServiceContainer.RegisterMonoSingleton<PhysicsSimulation>();
+            ServiceContainer.RegisterMonoSingleton<PhysicsEntityManager>();
 
             ServiceContainer.RegisterSingleton<ObjectInitializer>();
             ServiceContainer.RegisterSingleton<MethodFinder>();
