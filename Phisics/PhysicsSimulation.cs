@@ -95,6 +95,7 @@ namespace Assets.Infrastructure.Phisics
             _physicsComputeShader.SetBuffer(_computeKernelId, "MainBuffer", _writeMainBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "AdditionalBuffer", _additionalBuffer);
             _physicsComputeShader.Dispatch(_computeKernelId, _threadGroupsCount, 1, 1);
+            _additionalBuffer.GetData(_additionalBufferData);
         }
 
         private void ReadResultsFromBuffer()

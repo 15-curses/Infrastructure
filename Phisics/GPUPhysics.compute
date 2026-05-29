@@ -7,7 +7,7 @@ struct Main_Buffer
     float4 velocity;
     float4 rotation;
     float4 angularVelocity;
-    float4 mass_drag_hasError_addBuffer;
+    float4 mass_drag_additionalIndex_updateMask;
 };
 struct Additional_Buffer
 {
@@ -19,96 +19,94 @@ struct Additional_Buffer
 
 RWStructuredBuffer<Main_Buffer> MainBuffer;
 RWStructuredBuffer<Additional_Buffer> AdditionalBuffer;
+StructuredBuffer<int> ActiveIndices;
 
 float _DeltaTime;
 float3 _Gravity;
 float2 _MouseDelta;
+int _ActiveCount;
 
-void Drag(inout Main_Buffer _bufferSegment) // 2
+void Drag(inout Main_Buffer _bufferSegment)
 {
-    
+    // TODO
 }
 
-void Gravity(inout Main_Buffer _bufferSegment) // 3
+void Gravity(inout Main_Buffer _bufferSegment)
 {
-    Main_Buffer bufferSegment = _bufferSegment;
-    bufferSegment.velocity.y += _Gravity.y * _DeltaTime;
-    bufferSegment.position.y += bufferSegment.velocity.y * _DeltaTime;
-    
-    bufferSegment.mass_drag_hasError_addBuffer.z = 0;
-    bufferSegment.position.w = 1;
-    bufferSegment.velocity.w = 1;
-    
-    _bufferSegment = bufferSegment;
+    Main_Buffer b = _bufferSegment;
+    b.velocity.y += _Gravity.y * _DeltaTime;
+    b.position.y += b.velocity.y * _DeltaTime;
+    b.position.w = 1;
+    b.velocity.w = 1;
+    _bufferSegment = b;
 }
 
-void Move(inout Main_Buffer _bufferSegment) // 4
+void Move(inout Main_Buffer _bufferSegment)
 {
-    
+    // TODO
 }
 
-void Default(inout Main_Buffer _bufferSegment) // default
+void Default(inout Main_Buffer _bufferSegment)
 {
-    _bufferSegment.mass_drag_hasError_addBuffer.z = 1;
+    // неизвестный id — ничего не делаем
 }
 
-void OrbitCS(inout Main_Buffer _bufferSegment) // 1
+void OrbitCS(inout Main_Buffer _bufferSegment)
 {
-    Main_Buffer mainBufferSegment = _bufferSegment;
-    Additional_Buffer addBufferSegment = AdditionalBuffer[
-        mainBufferSegment.mass_drag_hasError_addBuffer.w];
-    
-    float flag = addBufferSegment.data2.w;
-    
-    if (flag)
-    {
-        float2 angle = addBufferSegment.data0.zw;
-        float torque = addBufferSegment.data1.x;
-        float radius = addBufferSegment.data1.y;
-        float3 center = addBufferSegment.data2.xyz;
-    
-        float angleXRad = radians(angle.x + _MouseDelta.x * torque);
-        float angleYRad = radians(angle.y + _MouseDelta.y * torque);
-        angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
-    
-        float newAngleX = degrees(angleXRad);
-        float newAngleY = degrees(angleYRad);
-    
-        float cosX, sinX, cosY, sinY;
-        sincos(angleXRad, sinX, cosX);
-        sincos(angleYRad, sinY, cosY);
-    
-        float rCosY = radius * cosY;
-        float3 position;
-        position.x = center.x + rCosY * sinX;
-        position.y = center.y + radius * sinY;
-        position.z = center.z + rCosY * cosX;
-    
-        mainBufferSegment.position.xyz = position;
-        mainBufferSegment.position.w = 1;
-    
-        mainBufferSegment.rotation.x = newAngleX;
-        mainBufferSegment.rotation.y = newAngleY;
-        mainBufferSegment.rotation.z = 0;
-        mainBufferSegment.rotation.w = 1;
-    
-        angle.x = newAngleX;
-        angle.y = newAngleY;
-        addBufferSegment.data0.zw = angle;
-        addBufferSegment.data2.w = 0; 
+    Main_Buffer main = _bufferSegment;
 
-        mainBufferSegment.mass_drag_hasError_addBuffer.z = 0;
-    
-        _bufferSegment = mainBufferSegment;
-        AdditionalBuffer[mainBufferSegment.mass_drag_hasError_addBuffer.w] = addBufferSegment;
-    }
+    int addIdx = (int) main.mass_drag_additionalIndex_updateMask.z;
+    Additional_Buffer add = AdditionalBuffer[addIdx];
+
+    float flag = add.data2.w;
+    if (!flag)
+        return;
+
+    float2 angle = add.data0.zw;
+    float torque = add.data1.x;
+    float radius = add.data1.y;
+    float3 center = add.data2.xyz;
+
+    float angleXRad = radians(angle.x + _MouseDelta.x * torque);
+    float angleYRad = radians(angle.y + _MouseDelta.y * torque);
+    angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
+
+    float newAngleX = degrees(angleXRad);
+    float newAngleY = degrees(angleYRad);
+
+    float cosX, sinX, cosY, sinY;
+    sincos(angleXRad, sinX, cosX);
+    sincos(angleYRad, sinY, cosY);
+
+    float rCosY = radius * cosY;
+    float3 pos;
+    pos.x = center.x + rCosY * sinX;
+    pos.y = center.y + radius * sinY;
+    pos.z = center.z + rCosY * cosX;
+
+    main.position.xyz = pos;
+    main.position.w = 1;
+
+    main.rotation.x = newAngleX;
+    main.rotation.y = newAngleY;
+    main.rotation.z = 0;
+    main.rotation.w = 1;
+
+    add.data0.zw = float2(newAngleX, newAngleY);
+
+    _bufferSegment = main;
+    AdditionalBuffer[addIdx] = add;
 }
 
 [numthreads(64, 1, 1)]
 void Physics(uint3 id : SV_DispatchThreadID)
 {
-    Main_Buffer bufferSegment = MainBuffer[id.x];
-    
+    if ((int) id.x >= _ActiveCount)
+        return;
+
+    int slotIndex = ActiveIndices[id.x];
+    Main_Buffer bufferSegment = MainBuffer[slotIndex];
+
     for (int i = 0; i < 4; i++)
     {
         switch (bufferSegment.id[i])
@@ -132,5 +130,5 @@ void Physics(uint3 id : SV_DispatchThreadID)
                 break;
         }
     }
-    MainBuffer[id.x] = bufferSegment;
+    MainBuffer[slotIndex] = bufferSegment;
 }
