@@ -21,9 +21,14 @@ namespace Assets.Infrastructure.Phisics
         private ComputeBuffer _readMainBuffer;
         private ComputeBuffer _writeMainBuffer;
         private ComputeBuffer _additionalBuffer;
+        private ComputeBuffer _activeIndicesBuffer;
+        private ComputeBuffer _taskCounterBuffer;
+        private ComputeBuffer _activeCountBuffer;
 
         private MainBufferData[] _mainBufferData;
         private AdditionalBufferData[] _additionalBufferData;
+        private int[] _activeIndices;
+        private int _activeCount;
 
         private ObjectPoolManager _poolManager;
 
@@ -57,12 +62,16 @@ namespace Assets.Infrastructure.Phisics
             _writeMainBuffer = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
             _readMainBuffer = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
             _additionalBuffer = new ComputeBuffer(_maxParticleCount, _additionalBufferStride);
+            _activeIndicesBuffer = new ComputeBuffer(_maxParticleCount, sizeof(int));
+            _taskCounterBuffer = new ComputeBuffer(1, sizeof(uint));
+            _activeCountBuffer = new ComputeBuffer(1, sizeof(uint));
         }
 
         private void InitializeDataArrays()
         {
             _mainBufferData = new MainBufferData[_maxParticleCount];
             _additionalBufferData = new AdditionalBufferData[_maxParticleCount];
+            _activeIndices = new int[_maxParticleCount];
             Array.Clear(_mainBufferData, 0, _mainBufferData.Length);
             Array.Clear(_additionalBufferData, 0, _additionalBufferData.Length);
         }
@@ -82,11 +91,19 @@ namespace Assets.Infrastructure.Phisics
             ReadResultsFromBuffer();
             SwapBuffers();
         }
-        
+
         private void SendDataToBuffers()
         {
             _writeMainBuffer.SetData(_mainBufferData);
             _additionalBuffer.SetData(_additionalBufferData);
+
+            _activeCount = 0;
+            foreach (var pair in _poolManager.GetRegistry())
+                _activeIndices[_activeCount++] = pair.Key;
+
+            _activeIndicesBuffer.SetData(_activeIndices, 0, 0, _activeCount);
+            _activeCountBuffer.SetData(new uint[] { (uint)_activeCount });
+            _taskCounterBuffer.SetData(new uint[] { 0 });
         }
 
         private void DispatchComputeShader()
@@ -94,7 +111,12 @@ namespace Assets.Infrastructure.Phisics
             _physicsComputeShader.SetFloat("_DeltaTime", Time.fixedDeltaTime);
             _physicsComputeShader.SetBuffer(_computeKernelId, "MainBuffer", _writeMainBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "AdditionalBuffer", _additionalBuffer);
-            _physicsComputeShader.Dispatch(_computeKernelId, _threadGroupsCount, 1, 1);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveIndices", _activeIndicesBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "TaskCounter", _taskCounterBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveCount", _activeCountBuffer);
+
+            int groups = Mathf.Clamp(Mathf.CeilToInt(_activeCount / (float)ThreadsPerGroup), 1, 256);
+            _physicsComputeShader.Dispatch(_computeKernelId, groups, 1, 1);
             _additionalBuffer.GetData(_additionalBufferData);
         }
 
@@ -622,6 +644,9 @@ namespace Assets.Infrastructure.Phisics
             _readMainBuffer?.Release();
             _writeMainBuffer?.Release();
             _additionalBuffer?.Release();
+            _activeIndicesBuffer?.Release();
+            _taskCounterBuffer?.Release();
+            _activeCountBuffer?.Release();
         }
 
         #region ЛОГИКА ДОБАВЛЕНИЯ И УДАЛЕНИЯ ОБЕКТА
@@ -632,8 +657,8 @@ namespace Assets.Infrastructure.Phisics
 
             _poolManager.RegisterGameObject(index, gameObject);
 
-            var physicsBody = body 
-                ?? gameObject.GetComponent<PhysicsBody>() 
+            var physicsBody = body
+                ?? gameObject.GetComponent<PhysicsBody>()
                 ?? gameObject.AddComponent<PhysicsBody>();
 
             _poolManager.RegisterPhysicsBody(index, physicsBody);
@@ -659,10 +684,10 @@ namespace Assets.Infrastructure.Phisics
             }
             return -1;
 
-        }    
+        }
         public void LinkAdditionalToMain(int mainBuferIndex, int additionalIndex)
             => _poolManager.RegisterUnificationOfBuffers(mainBuferIndex, additionalIndex);
-        
+
         #endregion
 
         #region Публичные методы для управления

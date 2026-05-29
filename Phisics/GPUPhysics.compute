@@ -19,12 +19,15 @@ struct Additional_Buffer
 
 RWStructuredBuffer<Main_Buffer> MainBuffer;
 RWStructuredBuffer<Additional_Buffer> AdditionalBuffer;
-StructuredBuffer<int> ActiveIndices;
+
+RWStructuredBuffer<int> ActiveIndices;
+RWStructuredBuffer<uint> TaskCounter;
+RWStructuredBuffer<uint> ActiveCount;
 
 float _DeltaTime;
 float3 _Gravity;
 float2 _MouseDelta;
-int _ActiveCount;
+
 
 void Drag(inout Main_Buffer _bufferSegment)
 {
@@ -101,34 +104,45 @@ void OrbitCS(inout Main_Buffer _bufferSegment)
 [numthreads(64, 1, 1)]
 void Physics(uint3 id : SV_DispatchThreadID)
 {
-    if ((int) id.x >= _ActiveCount)
-        return;
-
-    int slotIndex = ActiveIndices[id.x];
-    Main_Buffer bufferSegment = MainBuffer[slotIndex];
-
-    for (int i = 0; i < 4; i++)
+    while (true)
     {
-        switch (bufferSegment.id[i])
+        uint mySlot;
+        InterlockedAdd(TaskCounter[0], 1, mySlot);
+
+        if (mySlot >= ActiveCount[0])
+            break;
+
+        int objIdx = ActiveIndices[mySlot];
+
+        if (objIdx < 0)
+            continue;
+
+        Main_Buffer seg = MainBuffer[objIdx];
+
+        for (int i = 0; i < 4; i++)
         {
-            case 1:
-                OrbitCS(bufferSegment);
-                break;
-            case 2:
-                Drag(bufferSegment);
-                break;
-            case 3:
-                Gravity(bufferSegment);
-                break;
-            case 4:
-                Move(bufferSegment);
-                break;
-            case 0:
-                break;
-            default:
-                Default(bufferSegment);
-                break;
+            switch (seg.id[i])
+            {
+                case 1:
+                    OrbitCS(seg);
+                    break;
+                case 2:
+                    Drag(seg);
+                    break;
+                case 3:
+                    Gravity(seg);
+                    break;
+                case 4:
+                    Move(seg);
+                    break;
+                case 0:
+                    break;
+                default:
+                    Default(seg);
+                    break;
+            }
         }
+
+        MainBuffer[objIdx] = seg;
     }
-    MainBuffer[slotIndex] = bufferSegment;
 }
