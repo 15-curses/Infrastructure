@@ -34,7 +34,6 @@ namespace Assets.Infrastructure.Phisics
         {
             physicsManager = ServiceContainer.Get<PhysicsEntityManager>();
             physicsMethodsIndexes = new Dictionary<int, int>();
-            Gravity();
             RunToOrbit();
         }
         public void Gravity() // Index = 1

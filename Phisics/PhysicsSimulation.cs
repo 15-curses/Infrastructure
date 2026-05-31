@@ -33,6 +33,8 @@ namespace Assets.Infrastructure.Phisics
         private ObjectPoolManager _poolManager;
 
         private const int ThreadsPerGroup = 64;
+
+        private Vector2 _accumulatedMouseDelta;
         #endregion
 
         #region Инициализация
@@ -48,7 +50,14 @@ namespace Assets.Infrastructure.Phisics
             InputSystem.SubMouse(MouseUpdate);
         }
         private void MouseUpdate(Vector2 mouseDelta)
-            => _physicsComputeShader.SetFloats("_MouseDelta", mouseDelta.x, mouseDelta.y);
+        {
+            Vector2 normalizedDelta = new Vector2(
+                mouseDelta.x / Screen.width,
+                mouseDelta.y / Screen.height
+            );
+
+            _accumulatedMouseDelta += normalizedDelta;
+        }
 
         private void InitializeBufferSizes()
         {
@@ -114,6 +123,13 @@ namespace Assets.Infrastructure.Phisics
             _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveIndices", _activeIndicesBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "TaskCounter", _taskCounterBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveCount", _activeCountBuffer);
+
+            bool hasMouse = _accumulatedMouseDelta.sqrMagnitude > 0f;
+            if (hasMouse) _physicsComputeShader.SetFloats("_MouseDelta", _accumulatedMouseDelta.x, _accumulatedMouseDelta.y, 1f);
+
+            else _physicsComputeShader.SetFloats("_MouseDelta", 0f, 0f, 0f);
+
+            _accumulatedMouseDelta = Vector2.zero;
 
             int groups = Mathf.Clamp(Mathf.CeilToInt(_activeCount / (float)ThreadsPerGroup), 1, 256);
             _physicsComputeShader.Dispatch(_computeKernelId, groups, 1, 1);

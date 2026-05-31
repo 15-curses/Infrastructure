@@ -26,13 +26,7 @@ RWStructuredBuffer<uint> ActiveCount;
 
 float _DeltaTime;
 float3 _Gravity;
-float2 _MouseDelta;
-
-
-void Drag(inout Main_Buffer _bufferSegment)
-{
-    // TODO
-}
+float3 _MouseDelta;
 
 void Gravity(inout Main_Buffer _bufferSegment)
 {
@@ -44,61 +38,63 @@ void Gravity(inout Main_Buffer _bufferSegment)
     _bufferSegment = b;
 }
 
-void Move(inout Main_Buffer _bufferSegment)
-{
-    // TODO
-}
-
 void Default(inout Main_Buffer _bufferSegment)
 {
-    // неизвестный id — ничего не делаем
+    _bufferSegment.mass_drag_additionalIndex_updateMask.w = 0;
 }
 
 void OrbitCS(inout Main_Buffer _bufferSegment)
 {
-    Main_Buffer main = _bufferSegment;
+    if (_MouseDelta.z)
+    {
+        _MouseDelta.z = 0;
 
-    int addIdx = (int) main.mass_drag_additionalIndex_updateMask.z;
-    Additional_Buffer add = AdditionalBuffer[addIdx];
+        Main_Buffer main = _bufferSegment;
 
-    float flag = add.data2.w;
-    if (!flag)
-        return;
+        int addIdx = (int) main.mass_drag_additionalIndex_updateMask.z;
+        Additional_Buffer add = AdditionalBuffer[addIdx];
 
-    float2 angle = add.data0.zw;
-    float torque = add.data1.x;
-    float radius = add.data1.y;
-    float3 center = add.data2.xyz;
+        float flag = add.data2.w;
+        if (!flag) return;
 
-    float angleXRad = radians(angle.x + _MouseDelta.x * torque);
-    float angleYRad = radians(angle.y + _MouseDelta.y * torque);
-    angleYRad = clamp(angleYRad, radians(-75.0), radians(75.0));
+        float2 angle = add.data0.zw;
+        float torque = add.data1.x;
+        float radius = add.data1.y;
+        float3 center = add.data2.xyz;
 
-    float newAngleX = degrees(angleXRad);
-    float newAngleY = degrees(angleYRad);
+        float newAngleX = angle.x + _MouseDelta.x * torque;
+        float newAngleY = angle.y + _MouseDelta.y * torque;
+        newAngleY = clamp(newAngleY, -80.0, 80.0);
 
-    float cosX, sinX, cosY, sinY;
-    sincos(angleXRad, sinX, cosX);
-    sincos(angleYRad, sinY, cosY);
+        float angleXRad = radians(newAngleX);
+        float angleYRad = radians(newAngleY);
 
-    float rCosY = radius * cosY;
-    float3 pos;
-    pos.x = center.x + rCosY * sinX;
-    pos.y = center.y + radius * sinY;
-    pos.z = center.z + rCosY * cosX;
+        float cosX, sinX, cosY, sinY;
+        sincos(angleXRad, sinX, cosX);
+        sincos(angleYRad, sinY, cosY);
 
-    main.position.xyz = pos;
-    main.position.w = 1;
+        float rCosY = radius * cosY;
+        float3 offset;
+        offset.x = rCosY * sinX; 
+        offset.y = -radius * sinY;
+        offset.z = -rCosY * cosX;
 
-    main.rotation.x = newAngleX;
-    main.rotation.y = newAngleY;
-    main.rotation.z = 0;
-    main.rotation.w = 1;
+        main.position.xyz = center + offset;
+        main.position.w = 1;
 
-    add.data0.zw = float2(newAngleX, newAngleY);
+        main.rotation.x = newAngleX;
+        main.rotation.y = newAngleY;
+        main.rotation.z = 0;
+        main.rotation.w = 1;
 
-    _bufferSegment = main;
-    AdditionalBuffer[addIdx] = add;
+        add.data0.zw = float2(newAngleX, newAngleY);
+        
+        main.mass_drag_additionalIndex_updateMask.w = 12;
+        
+        _bufferSegment = main;
+        AdditionalBuffer[addIdx] = add;
+    }
+    else _bufferSegment.mass_drag_additionalIndex_updateMask.w = 0;
 }
 
 [numthreads(64, 1, 1)]
@@ -109,13 +105,11 @@ void Physics(uint3 id : SV_DispatchThreadID)
         uint mySlot;
         InterlockedAdd(TaskCounter[0], 1, mySlot);
 
-        if (mySlot >= ActiveCount[0])
-            break;
+        if (mySlot >= ActiveCount[0]) break;
 
         int objIdx = ActiveIndices[mySlot];
 
-        if (objIdx < 0)
-            continue;
+        if (objIdx < 0) continue;
 
         Main_Buffer seg = MainBuffer[objIdx];
 
@@ -123,26 +117,12 @@ void Physics(uint3 id : SV_DispatchThreadID)
         {
             switch (seg.id[i])
             {
-                case 1:
-                    OrbitCS(seg);
-                    break;
-                case 2:
-                    Drag(seg);
-                    break;
-                case 3:
-                    Gravity(seg);
-                    break;
-                case 4:
-                    Move(seg);
-                    break;
-                case 0:
-                    break;
-                default:
-                    Default(seg);
-                    break;
+                case 0: break;
+                case 1: OrbitCS(seg); break;
+                case 3: Gravity(seg); break;
+                default: Default(seg); break;
             }
         }
-
         MainBuffer[objIdx] = seg;
     }
 }
