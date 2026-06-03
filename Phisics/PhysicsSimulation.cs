@@ -1,7 +1,6 @@
 ﻿using Assets.Infrastructure.InputManager;
 using System;
 using System.Runtime.InteropServices;
-using UnityEditor.EditorTools;
 using UnityEngine;
 
 namespace Assets.Infrastructure.Phisics
@@ -87,8 +86,8 @@ namespace Assets.Infrastructure.Phisics
 
         private void SetupComputeShader()
         {
-            _computeKernelId = _physicsComputeShader.FindKernel("Physics");
-            _physicsComputeShader.SetVector("_Gravity", _gravity);
+            _computeKernelId = _physicsComputeShader.FindKernel("PhysicsSimulation");
+            _physicsComputeShader.SetVector("Gravity", _gravity);
         }
         #endregion
 
@@ -117,17 +116,17 @@ namespace Assets.Infrastructure.Phisics
 
         private void DispatchComputeShader()
         {
-            _physicsComputeShader.SetFloat("_DeltaTime", Time.fixedDeltaTime);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "MainBuffer", _writeMainBuffer);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "AdditionalBuffer", _additionalBuffer);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveIndices", _activeIndicesBuffer);
+            _physicsComputeShader.SetFloat("DeltaTime", Time.fixedDeltaTime);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsObjectBuffer", _writeMainBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsAdditionalDataBuffer", _additionalBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveObjectIndices", _activeIndicesBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "TaskCounter", _taskCounterBuffer);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveCount", _activeCountBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveObjectCount", _activeCountBuffer);
 
             bool hasMouse = _accumulatedMouseDelta.sqrMagnitude > 0f;
-            if (hasMouse) _physicsComputeShader.SetFloats("_MouseDelta", _accumulatedMouseDelta.x, _accumulatedMouseDelta.y, 1f);
+            if (hasMouse) _physicsComputeShader.SetFloats("MouseDelta", _accumulatedMouseDelta.x, _accumulatedMouseDelta.y, 1f);
 
-            else _physicsComputeShader.SetFloats("_MouseDelta", 0f, 0f, 0f);
+            else _physicsComputeShader.SetFloats("MouseDelta", 0f, 0f, 0f);
 
             _accumulatedMouseDelta = Vector2.zero;
 

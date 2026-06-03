@@ -1,0 +1,47 @@
+#pragma kernel PhysicsSimulation
+
+#include "Structures.hlsl"
+#include "Buffers.hlsl"
+#include "Constants.hlsl"
+#include "Forces.hlsl"
+#include "Controllers.hlsl"
+
+[numthreads(64, 1, 1)]
+void PhysicsSimulation(uint3 id : SV_DispatchThreadID)
+{
+    while (true)
+    {
+        uint taskSlot;
+        InterlockedAdd(TaskCounter[0], 1, taskSlot);
+
+        if (taskSlot >= ActiveObjectCount[0])
+            break;
+
+        int objectIndex = ActiveObjectIndices[taskSlot];
+
+        if (objectIndex < 0)
+            continue;
+
+        PhysicsObject physicsObject = PhysicsObjectBuffer[objectIndex];
+
+        for (int i = 0; i < 4; i++)
+        {
+            switch (physicsObject.id[i])
+            {
+                case 0:
+                    break;
+                case 1:
+                    UpdateOrbitController(physicsObject);
+                    break;
+                case 3:
+                    ApplyGravity(physicsObject);
+                    break;
+                default:
+                    ResetUpdateMask(physicsObject);
+                    break;
+            }
+        }
+
+        PhysicsObjectBuffer[objectIndex] = physicsObject;
+    }
+}
