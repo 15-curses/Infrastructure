@@ -55,4 +55,4 @@ void ResetUpdateMask(inout PhysicsObject obj)
     obj.mass_drag_additionalIndex_updateMask.w = 0;
 }
 
-#endif
+#endif\

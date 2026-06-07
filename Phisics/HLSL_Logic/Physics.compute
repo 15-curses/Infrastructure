@@ -2,7 +2,6 @@
 
 #include "Structures.hlsl"
 #include "Buffers.hlsl"
-#include "Constants.hlsl"
 #include "Forces.hlsl"
 #include "Controllers.hlsl"
 

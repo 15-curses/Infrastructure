@@ -1,7 +1,9 @@
 ﻿using Assets.Infrastructure.InputManager;
 using System;
 using System.Runtime.InteropServices;
+using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.LightTransport;
 
 namespace Assets.Infrastructure.Phisics
 {
@@ -9,20 +11,35 @@ namespace Assets.Infrastructure.Phisics
     {
         #region Поля переменных
         [SerializeField] private int _maxParticleCount = 1000;
+
+        [SerializeField] private int _sphereCount = 1000;
+        [SerializeField] private int _maxPointsCount = 100000;
+        [SerializeField] private int _connectionOfPoints = 100000;
+
         [SerializeField] private ComputeShader _physicsComputeShader;
         [SerializeField] private Vector3 _gravity = new Vector3(0, -9.81f, 0);
 
         private int _mainBufferStride;
         private int _additionalBufferStride;
-        private int _computeKernelId;
-        private int _threadGroupsCount;
 
-        private ComputeBuffer _readMainBuffer;
-        private ComputeBuffer _writeMainBuffer;
-        private ComputeBuffer _additionalBuffer;
+        private int _sizeofFloat4;
+
+        private int _computeKernelId;
+
+        private ComputeBuffer _mainBuffer0;
+        private ComputeBuffer _mainBuffer1;
+        private ComputeBuffer _additionalBuffer0;
+        private ComputeBuffer _additionalBuffer1;
         private ComputeBuffer _activeIndicesBuffer;
         private ComputeBuffer _taskCounterBuffer;
         private ComputeBuffer _activeCountBuffer;
+
+        private ComputeBuffer _sphereBuffer;
+        private ComputeBuffer _meshPointsBuffer;
+        private ComputeBuffer _connectionOfPointsBuffer;
+
+        private float4[] pointID_pointID_next_connectionOfPointsTypes;
+        private float4[] position_Index;
 
         private MainBufferData[] _mainBufferData;
         private AdditionalBufferData[] _additionalBufferData;
@@ -45,9 +62,9 @@ namespace Assets.Infrastructure.Phisics
             InitializeComputeBuffers();
             InitializeDataArrays();
             SetupComputeShader();
-
-            InputSystem.SubMouse(MouseUpdate);
+            MouseSub();
         }
+        private void MouseSub() => InputSystem.SubMouse(MouseUpdate);
         private void MouseUpdate(Vector2 mouseDelta)
         {
             Vector2 normalizedDelta = new Vector2(
@@ -62,17 +79,23 @@ namespace Assets.Infrastructure.Phisics
         {
             _mainBufferStride = Marshal.SizeOf<MainBufferData>();
             _additionalBufferStride = Marshal.SizeOf<AdditionalBufferData>();
-            _threadGroupsCount = Mathf.CeilToInt(_maxParticleCount / (float)ThreadsPerGroup);
+            _sizeofFloat4 = Marshal.SizeOf<float4>();
         }
 
         private void InitializeComputeBuffers()
         {
-            _writeMainBuffer = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
-            _readMainBuffer = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
-            _additionalBuffer = new ComputeBuffer(_maxParticleCount, _additionalBufferStride);
+            _mainBuffer1 = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
+            _mainBuffer0 = new ComputeBuffer(_maxParticleCount, _mainBufferStride);
+            _additionalBuffer1 = new ComputeBuffer(_maxParticleCount, _additionalBufferStride);
+            _additionalBuffer0 = new ComputeBuffer(_maxParticleCount, _additionalBufferStride);
             _activeIndicesBuffer = new ComputeBuffer(_maxParticleCount, sizeof(int));
             _taskCounterBuffer = new ComputeBuffer(1, sizeof(uint));
             _activeCountBuffer = new ComputeBuffer(1, sizeof(uint));
+
+            _sphereBuffer = new ComputeBuffer(_sphereCount, _sizeofFloat4);
+
+            _meshPointsBuffer = new ComputeBuffer(_maxPointsCount, _sizeofFloat4);
+            _connectionOfPointsBuffer = new ComputeBuffer(_connectionOfPoints, _sizeofFloat4);
         }
 
         private void InitializeDataArrays()
@@ -102,9 +125,6 @@ namespace Assets.Infrastructure.Phisics
 
         private void SendDataToBuffers()
         {
-            _writeMainBuffer.SetData(_mainBufferData);
-            _additionalBuffer.SetData(_additionalBufferData);
-
             _activeCount = 0;
             foreach (var pair in _poolManager.GetRegistry())
                 _activeIndices[_activeCount++] = pair.Key;
@@ -117,11 +137,16 @@ namespace Assets.Infrastructure.Phisics
         private void DispatchComputeShader()
         {
             _physicsComputeShader.SetFloat("DeltaTime", Time.fixedDeltaTime);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsObjectBuffer", _writeMainBuffer);
-            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsAdditionalDataBuffer", _additionalBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsObjectBuffer", _mainBuffer1);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "PhysicsAdditionalDataBuffer", _additionalBuffer1);
             _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveObjectIndices", _activeIndicesBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "TaskCounter", _taskCounterBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveObjectCount", _activeCountBuffer);
+
+            _physicsComputeShader.SetBuffer(_computeKernelId, "SphereBuffer", _sphereBuffer);
+
+            _physicsComputeShader.SetBuffer(_computeKernelId, "MeshPoints", _meshPointsBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ConnectionOfPoints", _connectionOfPointsBuffer);
 
             bool hasMouse = _accumulatedMouseDelta.sqrMagnitude > 0f;
             if (hasMouse) _physicsComputeShader.SetFloats("MouseDelta", _accumulatedMouseDelta.x, _accumulatedMouseDelta.y, 1f);
@@ -132,13 +157,14 @@ namespace Assets.Infrastructure.Phisics
 
             int groups = Mathf.Clamp(Mathf.CeilToInt(_activeCount / (float)ThreadsPerGroup), 1, 256);
             _physicsComputeShader.Dispatch(_computeKernelId, groups, 1, 1);
-            _additionalBuffer.GetData(_additionalBufferData);
         }
 
         private void ReadResultsFromBuffer()
         {
             var results = new MainBufferData[_maxParticleCount];
-            _readMainBuffer.GetData(results, 0, 0, _maxParticleCount);
+
+            _mainBuffer0.GetData(results, 0, 0, _maxParticleCount);
+            _additionalBuffer0.GetData(_additionalBufferData);
 
             foreach (var pair in _poolManager.GetRegistry())
             {
@@ -647,18 +673,22 @@ namespace Assets.Infrastructure.Phisics
 
         private void SwapBuffers()
         {
-            var temp = _writeMainBuffer;
-            _writeMainBuffer = _readMainBuffer;
-            _readMainBuffer = temp;
+            var temp0 = _mainBuffer1;
+            _mainBuffer1 = _mainBuffer0;
+            _mainBuffer0 = temp0;
+
+            var temp1 = _additionalBuffer1;
+            _additionalBuffer1 = _additionalBuffer0;
+            _additionalBuffer0 = temp1;
         }
         #endregion
         #endregion
 
         private void OnDestroy()
         {
-            _readMainBuffer?.Release();
-            _writeMainBuffer?.Release();
-            _additionalBuffer?.Release();
+            _mainBuffer0?.Release();
+            _mainBuffer1?.Release();
+            _additionalBuffer0?.Release();
             _activeIndicesBuffer?.Release();
             _taskCounterBuffer?.Release();
             _activeCountBuffer?.Release();
@@ -677,7 +707,8 @@ namespace Assets.Infrastructure.Phisics
                 ?? gameObject.AddComponent<PhysicsBody>();
 
             _poolManager.RegisterPhysicsBody(index, physicsBody);
-            _mainBufferData[index] = initialData;
+
+            _mainBuffer1.SetData(new MainBufferData[1] { initialData }, 0, index, 1);
 
             return index;
         }
@@ -694,11 +725,10 @@ namespace Assets.Infrastructure.Phisics
         {
             if (_poolManager.TryGetAdditionalSlot(out int additionalIndex))
             {
-                _additionalBufferData[additionalIndex] = additionalData;
+                _additionalBuffer1.SetData(new AdditionalBufferData[1] { additionalData }, 0, additionalIndex, 1);
                 return additionalIndex;
             }
             return -1;
-
         }
         public void LinkAdditionalToMain(int mainBuferIndex, int additionalIndex)
             => _poolManager.RegisterUnificationOfBuffers(mainBuferIndex, additionalIndex);

@@ -12,11 +12,12 @@ RWStructuredBuffer<uint> ActiveObjectCount;
 #include "CollidersType.hlsl"
 
 RWStructuredBuffer<Sphere_Type> SphereBuffer;
-RWStructuredBuffer<Cylinder_Type> CylinderBuffer;
-RWStructuredBuffer<Plane_Type> PlaneBuffer;
-RWStructuredBuffer<Box_Type> BoxBuffer;
+//RWStructuredBuffer<Cylinder_Type> CylinderBuffer;
+//RWStructuredBuffer<Plane_Type> PlaneBuffer;
+//RWStructuredBuffer<Box_Type> BoxBuffer;
+//RWStructuredBuffer<Capsule_Type> CapsuleBuffer;
 
-RWStructuredBuffer<Capsule_Type> CapsuleBuffer;
-RWStructuredBuffer<Mesh_Type> MeshBuffer;
+RWStructuredBuffer<Mesh_Type_Points> MeshPoints;
+RWStructuredBuffer<Mesh_Type_ConnectionOfPoints> ConnectionOfPoints;
 
-#endif
+#endif 

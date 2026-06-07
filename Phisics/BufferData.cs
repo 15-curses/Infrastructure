@@ -41,4 +41,21 @@ namespace Assets.Infrastructure.Phisics
         public float4 Data2;
         public float4 Data3;
     }
+    public struct Collider_Type
+    {
+        public const int None = 0;
+        public const int Box = 1;
+        public const int Sphere = 2;
+        public const int Capsule = 3;
+        public const int Cylinder = 4;
+        public const int Plane = 5;
+        public const int Mesh = 6;
+    };
+    public struct ConnectionOfPoints_Types
+    {
+        public const int Static = 0;
+        public const int Move = 1;
+        public const int Deformation = 2;
+        public const int Deformation_Move = 3;
+    };
 }

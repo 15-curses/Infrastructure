@@ -1,24 +1,27 @@
 ﻿#ifndef PHYSICS_COLLIDERS_TYPE_HLSL
 #define PHYSICS_COLLIDERS_TYPE_HLSL
 
-struct Collider_Type
-{
-    static const int None = 0;
-    static const int Box = 1;
-    static const int Sphere = 2;
-    static const int Capsule = 3;
-    static const int Cylinder = 4;
-    static const int Plane = 5;
-    static const int Mesh = 6;
-};
+#define COLLIDER_NONE       0
+#define COLLIDER_BOX        1
+#define COLLIDER_SPHERE     2
+#define COLLIDER_CAPSULE    3
+#define COLLIDER_CYLINDER   4
+#define COLLIDER_PLANE      5
+#define COLLIDER_MESH       6
+
+#define CONN_STATIC         0
+#define CONN_MOVE           1
+#define CONN_DEFORMATION    2
+#define CONN_DEFORMATION_MOVE 3
+
+
 struct Sphere_Type
 {
     float4 center_radius; // center.xyz + radius
 };
 struct Capsule_Type
 {
-    float4 p0_radius; // точка 0 (начало): p0.xyz + radius
-    float4 p1_height; // точка 1 (конец): p1.xyz + height (или просто p1)
+    //TODO
 };
 struct Cylinder_Type
 {
@@ -35,9 +38,18 @@ struct Box_Type
     Plane_Type group0;
     Plane_Type group1;
 };
-struct Mesh_Type
+
+struct Mesh_Type_Points
 {
-    //TODO
+    float4 position_Index;
+};
+struct Mesh_Type_ConnectionOfPoints
+{
+    float4 pointID_pointID_next_connectionOfPointsTypes;
 };
 
+struct Mesh_Type_ObjectsToChanks
+{
+    
+};
 #endif
