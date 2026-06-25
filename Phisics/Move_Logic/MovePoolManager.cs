@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Assets.Infrastructure.Phisics
+namespace Assets.Infrastructure.Phisics.Move_Logic
 {
-    public class ObjectPoolManager
+    public class MovePoolManager
     {
         private readonly Dictionary<int, GameObject> _gameObjectRegistry = new();
         private readonly Dictionary<int, PhysicsBody> _physicsBodyRegistry = new();
@@ -16,7 +16,7 @@ namespace Assets.Infrastructure.Phisics
 
         private readonly Stack<int> _availableMeshPointsSlots;
 
-        public ObjectPoolManager(int capacity)
+        public MovePoolManager(int capacity)
         {
             _capacity = capacity;
             _availableMainSlots = new Stack<int>(capacity);
@@ -55,6 +55,5 @@ namespace Assets.Infrastructure.Phisics
         public bool TryGetPhysicsBody(int index, out PhysicsBody body) => _physicsBodyRegistry.TryGetValue(index, out body);
 
         public Dictionary<int, GameObject> GetRegistry() => _gameObjectRegistry;
-
     }
 }

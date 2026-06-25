@@ -1,4 +1,5 @@
 ﻿using Assets.Infrastructure.InputManager;
+using Assets.Infrastructure.Phisics.Move_Logic;
 using Assets.Infrastructure.ServiceLocator;
 using System.Collections.Generic;
 using Unity.Mathematics;
@@ -19,7 +20,7 @@ namespace Assets.Infrastructure.Phisics
         public float3 AngularVelocity { get; set; }
 
         private Dictionary<int, int> physicsMethodsIndexes;
-        private PhysicsEntityManager physicsManager;
+        private AddMove physicsManager;
         public float Mass
         {
             get => _mass;
@@ -32,7 +33,7 @@ namespace Assets.Infrastructure.Phisics
         }
         private void Start()
         {
-            physicsManager = ServiceContainer.Get<PhysicsEntityManager>();
+            physicsManager = ServiceContainer.Get<MoveEntityManager>();
             physicsMethodsIndexes = new Dictionary<int, int>();
             RunToOrbit();
         }

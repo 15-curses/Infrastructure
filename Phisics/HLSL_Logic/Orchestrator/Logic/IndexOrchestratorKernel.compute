@@ -1,0 +1,32 @@
+#pragma kernel Main
+
+#include "Assets/Infrastructure/Phisics/HLSL_Logic/Orchestrator/IncludesTree.hlsl"
+
+[numthreads(64, 1, 1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+    while (true)
+    {
+        uint index;
+        InterlockedAdd(counter[0], 1, index);
+        
+        if (index >= orchestrator_buffer_size) break;
+        
+        int indexInBuffer = (int)floor(index / 4);
+        int slotIndex = index % 4;
+        IndexOrchestrator element = index_orchestrator_buffer[indexInBuffer];
+        
+        uint packedValue;
+        
+        switch (slotIndex)
+        {
+            case 0: packedValue = element.index0; break;
+            case 1: packedValue = element.index1; break;
+            case 2: packedValue = element.index2; break;
+            case 3: packedValue = element.index3; break;
+        }
+        ReadOperation(packedValue);
+    }
+}
+
+
