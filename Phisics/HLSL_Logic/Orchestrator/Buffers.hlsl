@@ -10,5 +10,6 @@ RWStructuredBuffer<ObjectAdditionalData> PhysicsAdditionalDataBuffer;
 RWStructuredBuffer<uint> back_counter_buffer;
 RWStructuredBuffer<BackStruct> back_buffer;
 
+RWStructuredBuffer<Chunks> chunks_buffer;
 
 #endif 

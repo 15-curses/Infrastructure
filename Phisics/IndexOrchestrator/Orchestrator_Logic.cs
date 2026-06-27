@@ -1,6 +1,4 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -9,7 +7,7 @@ namespace Assets.Infrastructure.Phisics.IndexOrchestrator
     public static class Orchestrator_Logic
     {
         public static int indexsCount = 100000;
-        private static IndexedStorage<uint> indexs = new (indexsCount);
+        private static IndexedStorage<uint> indexs = new(indexsCount);
         public static ComputeBuffer IndexsBuffer;
 
         public static void Initialize() => IndexsBuffer = new(indexsCount / 4, Marshal.SizeOf<This>());
@@ -26,10 +24,10 @@ namespace Assets.Infrastructure.Phisics.IndexOrchestrator
         }
 
         private static int AddIndex(uint indexInBuffer)
-        {   
+        {
             int indexInStorage = indexs.Add(indexInBuffer);
 
-            int indexInThisBuffer = (int)Math.Floor(indexInStorage / 4f);
+            int indexInThisBuffer = indexInStorage / 4;
             uint slot = indexInBuffer % 4;
 
             IndexerData[] tmp = new IndexerData[1];

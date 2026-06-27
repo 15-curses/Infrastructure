@@ -12,7 +12,7 @@ void Main(uint3 id : SV_DispatchThreadID)
         
         if (index >= orchestrator_buffer_size) break;
         
-        int indexInBuffer = (int)floor(index / 4);
+        uint indexInBuffer = index / 4;
         int slotIndex = index % 4;
         IndexOrchestrator element = index_orchestrator_buffer[indexInBuffer];
         

@@ -33,7 +33,6 @@ namespace Assets.Infrastructure.Phisics
         }
         private void Start()
         {
-            physicsManager = ServiceContainer.Get<MoveEntityManager>();
             physicsMethodsIndexes = new Dictionary<int, int>();
             RunToOrbit();
         }

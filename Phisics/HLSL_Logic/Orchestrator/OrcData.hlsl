@@ -3,10 +3,10 @@
 
 struct IndexOrchestrator
 {
-    float index0;
-    float index1;
-    float index2;
-    float index3;
+    uint index0;
+    uint index1;
+    uint index2;
+    uint index3;
 };
 
 const uint None = 0;

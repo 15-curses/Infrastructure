@@ -20,8 +20,6 @@ namespace Assets.Infrastructure.ServiceLocator
             ServiceContainer.RegisterMonoSingleton<InputSystem>();
             ServiceContainer.RegisterMonoSingleton<BallControl>();
             ServiceContainer.RegisterMonoSingleton<CueController>();
-            ServiceContainer.RegisterMonoSingleton<PhysicsSimulation>();
-            ServiceContainer.RegisterMonoSingleton<PhysicsEntityManager>();
 
             ServiceContainer.RegisterSingleton<ObjectInitializer>();
             ServiceContainer.RegisterSingleton<MethodFinder>();

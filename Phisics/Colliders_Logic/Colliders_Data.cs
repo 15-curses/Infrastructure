@@ -106,6 +106,13 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
         public float4 trianglesBufferID6;
         public float4 trianglesBufferID7;
     };
+    public struct MeshAddIndexerData
+    {
+        public float startTrianglIndex;
+        public float endTrianglIndex;
+        public float startVerticeIndex;
+        public float endVerticeIndex;
+    }
     public struct Collider_Type
     {
         public const int None = 0;

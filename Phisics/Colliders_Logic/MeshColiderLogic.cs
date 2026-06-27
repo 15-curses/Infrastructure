@@ -29,15 +29,26 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
         private int verticesBufferStride;
         private int meshIndexerBufferStride;
 
-        private static int trianglesPosInBuffer;
-        private static int verticesPosInBuffer;
-        private static int meshIndexerPosInBuffer;
-
-        public MeshColiderLogic(int _trianglesBufferStride, int _verticesBufferStride, int _meshIndexerBufferStride)
+        private int trianglesPosInBuffer;
+        private int verticesPosInBuffer;
+        private int meshAddIndexerPosInBuffer;
+        
+        public MeshColiderLogic(
+           int _trianglesBufferStride, int _verticesBufferStride, int _meshIndexerBufferStride,
+           int _TrianglesBufferCount, int _MeshIndexerBufferCount, int _VerticesBufferCount,
+           int _AddTrianglesBufferCount, int _AddMeshIndexerBufferCount, int _AddVerticesBufferCount)
         {
             trianglesBufferStride = _trianglesBufferStride;
             verticesBufferStride = _verticesBufferStride;
             meshIndexerBufferStride = _meshIndexerBufferStride;
+
+            TrianglesBufferCount = _TrianglesBufferCount;
+            MeshIndexerBufferCount = _MeshIndexerBufferCount;
+            VerticesBufferCount = _VerticesBufferCount;
+
+            AddTrianglesBufferCount = _AddTrianglesBufferCount;
+            AddMeshIndexerBufferCount = _AddMeshIndexerBufferCount;
+            AddVerticesBufferCount = _AddVerticesBufferCount;
         }
 
         public void Initialize()
@@ -66,9 +77,9 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
 
         public void SetAddData()
         {
-            trianglesPosInBuffer = 0;
-            verticesPosInBuffer = 0;
-            meshIndexerPosInBuffer = 0;
+            trianglesPosInBuffer = -1;
+            verticesPosInBuffer = -1;
+            meshAddIndexerPosInBuffer = -1;
 
             
         }
@@ -84,24 +95,15 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
             Vector3[] vertices = mesh.vertices;
             int[] triangles = mesh.triangles;
 
-            int colliderType = 1;
-
             int verticesArrayCount = (int)Math.Ceiling(vertices.Length / 36.0);
             VerticesData[] verticesDataArray = new VerticesData[verticesArrayCount];
-
             FillVerticesData(ref verticesDataArray, vertices, verticesArrayCount);
 
             int trianglesArrayCount = (int)Math.Ceiling(triangles.Length / 108.0);
             TrianglesData[] trianglesDataArray = new TrianglesData[trianglesArrayCount];
-
             FillTrianglesData(ref trianglesDataArray, triangles);
 
-            MeshIndexerData meshIndexer = new();
-            FillMeshIndexerData(ref meshIndexer, triangles, colliderType);
-
-            //AddVerticesBuffer.SetData(verticesDataArray);
-            //AddTrianglesBuffer.SetData(verticesDataArray);
-            //AddMeshIndexerBuffer.SetData(trianglesDataArray);
+            FillAddMeshIndexerDataAndSetData(verticesDataArray, trianglesDataArray, verticesArrayCount, trianglesArrayCount);
         }
 
         private void FillVerticesData(ref VerticesData[] verticesDataArray, Vector3[] vertices, int verticesArrayCount)
@@ -231,42 +233,31 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
 
             trianglesDataArray = result;
         }
-        private void FillMeshIndexerData(ref MeshIndexerData meshIndexer, int[] triangles, float colliderType)
+        private void FillAddMeshIndexerDataAndSetData(
+            VerticesData[] verticesDataArray,
+            TrianglesData[] trianglesDataArray,
+            int verticesArrayCount,
+            int trianglesArrayCount)
         {
-            MeshIndexerData data = new();
-            data.colliderType = colliderType;
+            int _trianglesPosInBuffer = trianglesPosInBuffer + verticesArrayCount;
+            int _verticesPosInBuffer = verticesPosInBuffer + verticesArrayCount;
 
-            int batchSize = 32;
-            int processCount = Mathf.Min(triangles.Length, batchSize);
-
-            data.trianglesBufferID0 = new float3(
-                triangles[0],
-                1 < processCount ? triangles[1] : 0,
-                2 < processCount ? triangles[2] : 0);
-
-            for (int i = 1; i <= 7; i++)
+            MeshAddIndexerData meshAddIndexer = new MeshAddIndexerData
             {
-                int startIdx = 3 + (i - 1) * 4;
+                startTrianglIndex = trianglesPosInBuffer == -1 ? 0 : trianglesPosInBuffer,
+                endTrianglIndex = _trianglesPosInBuffer,
+                startVerticeIndex = verticesBufferStride == -1 ? 0 : verticesBufferStride,
+                endVerticeIndex = _verticesPosInBuffer
+            };
 
-                float4 bufferData = new float4(
-                    startIdx < processCount ? triangles[startIdx] : 0,
-                    startIdx + 1 < processCount ? triangles[startIdx + 1] : 0,
-                    startIdx + 2 < processCount ? triangles[startIdx + 2] : 0,
-                    startIdx + 3 < processCount ? triangles[startIdx + 3] : 0);
+            trianglesPosInBuffer = _trianglesPosInBuffer;
+            AddTrianglesBuffer.SetData(trianglesDataArray, 0, trianglesPosInBuffer, trianglesArrayCount);
 
-                switch (i)
-                {
-                    case 1: data.trianglesBufferID1 = bufferData; break;
-                    case 2: data.trianglesBufferID2 = bufferData; break;
-                    case 3: data.trianglesBufferID3 = bufferData; break;
-                    case 4: data.trianglesBufferID4 = bufferData; break;
-                    case 5: data.trianglesBufferID5 = bufferData; break;
-                    case 6: data.trianglesBufferID6 = bufferData; break;
-                    case 7: data.trianglesBufferID7 = bufferData; break;
-                }
-            }
+            verticesPosInBuffer = _verticesPosInBuffer;
+            AddVerticesBuffer.SetData(verticesDataArray, 0, verticesPosInBuffer, verticesArrayCount);
 
-            meshIndexer = data;
+            meshAddIndexerPosInBuffer++;
+            AddMeshIndexerBuffer.SetData(new MeshAddIndexerData[1] { meshAddIndexer }, 0, meshAddIndexerPosInBuffer, 1);
         }
     }
 }
