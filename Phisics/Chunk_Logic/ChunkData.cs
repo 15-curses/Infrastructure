@@ -7,10 +7,17 @@ namespace Assets.Infrastructure.Phisics.Chunk_Logic
 {
     public struct Chunks
     {
-        public float3 vertice0; // minX, minY, minZ
-        public float3 vertice1; // maxX, minY, minZ
-        public float3 vertice2; // minX, maxY, minZ
-        public float3 vertice3; // maxX, maxY, minZ
+        public float3 min_xyz;
+        public float3 max_xyz;
+
+        public uint x_plus_chunkId;
+        public uint x_min_chunkId;
+
+        public uint y_plus_chunkId;
+        public uint y_min_chunkId;
+
+        public uint z_plus_chunkId;
+        public uint z_min_chunkId;
 
         public float3 obj0;
         public float3 obj1;

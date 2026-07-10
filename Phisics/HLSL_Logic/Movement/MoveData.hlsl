@@ -10,7 +10,25 @@ struct PhysicsObject
     float4 angularVelocity;
     float4 mass_drag_additionalIndex_updateMask;
 };
-
+struct PhysicsObject_
+{
+    uint colliderType;
+    
+    uint objBufferIndex;
+    uint additionalBufferIndex;
+    
+    float3 centerAABB;
+    float3 cubSize;
+    float3 rotation;
+    float3 position;
+    
+    float3 velocity;
+    float3 angularVelocity;
+    
+    float mass;
+    float drag;
+    float updateMask;
+};
 struct ObjectAdditionalData
 {
     float4 data0;

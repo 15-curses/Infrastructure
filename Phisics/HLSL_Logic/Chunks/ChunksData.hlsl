@@ -1,12 +1,20 @@
 ﻿#ifndef CHUNKS_DATA_H
 #define CHUNKS_DATA_H
 
-struct Chunks
+struct Chunk
 {
-    float3 vertice0; // minX, minY, minZ
-    float3 vertice1; // maxX, minY, minZ
-    float3 vertice2; // minX, maxY, minZ
-    float3 vertice3; // maxX, maxY, minZ
+    float3 min_xyz;
+    float3 max_xyz;
+    
+    uint x_plus_chunkId;
+    uint x_min_chunkId;
+    
+    uint y_plus_chunkId;
+    uint y_min_chunkId;
+    
+    uint z_plus_chunkId;
+    uint z_min_chunkId;
+    
 
     float3 obj0;
     float3 obj1;

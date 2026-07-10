@@ -84,7 +84,7 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
             
         }
 
-        private void FillMeshData(MeshFilter meshFilter)
+        private void FillMeshData(MeshFilter meshFilter, float freeInf)
         {
             if (meshFilter == null)
             {
@@ -97,19 +97,28 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
 
             int verticesArrayCount = (int)Math.Ceiling(vertices.Length / 36.0);
             VerticesData[] verticesDataArray = new VerticesData[verticesArrayCount];
-            FillVerticesData(ref verticesDataArray, vertices, verticesArrayCount);
+            
+            float3 cubSize = 0;
+            float3 center = 0;
+            FillVerticesData(ref verticesDataArray, ref cubSize, ref center ,vertices, verticesArrayCount);
+            
 
             int trianglesArrayCount = (int)Math.Ceiling(triangles.Length / 108.0);
             TrianglesData[] trianglesDataArray = new TrianglesData[trianglesArrayCount];
             FillTrianglesData(ref trianglesDataArray, triangles);
 
-            FillAddMeshIndexerDataAndSetData(verticesDataArray, trianglesDataArray, verticesArrayCount, trianglesArrayCount);
+            FillAddMeshIndexerDataAndSetData(verticesDataArray, trianglesDataArray, verticesArrayCount,
+                trianglesArrayCount, center, cubSize, freeInf);
         }
 
-        private void FillVerticesData(ref VerticesData[] verticesDataArray, Vector3[] vertices, int verticesArrayCount)
+        private void FillVerticesData(ref VerticesData[] verticesDataArray,
+            ref float3 cubSize, ref float3 center, Vector3[] vertices, int verticesArrayCount)
         {
             int batchSize = 36;
-
+            
+            float3 min =  vertices[0];
+            float3 max = vertices[0];
+            
             for (int batch = 0; batch < verticesArrayCount; batch++)
             {
                 VerticesData verticesData = new();
@@ -118,7 +127,15 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
                 for (int i = 0; i < batchSize && baseIndex + i < vertices.Length; i++)
                 {
                     float3 vertex = vertices[baseIndex + i];
-
+                    
+                    min.x = Mathf.Min(min.x, vertex.x);
+                    min.y = Mathf.Min(min.y, vertex.y);
+                    min.z = Mathf.Min(min.z, vertex.z);
+                    
+                    max.x = Mathf.Max(max.x, vertex.x);
+                    max.y = Mathf.Max(max.y, vertex.y);
+                    max.z = Mathf.Max(max.z, vertex.z);
+                    
                     switch (i)
                     {
                         case 0: verticesData.vertices0 = vertex; break;
@@ -160,6 +177,9 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
                     }
                 }
 
+                cubSize = max - min;
+                center = (min + max) / 2f;
+                
                 verticesDataArray[batch] = verticesData;
             }
         }
@@ -237,13 +257,20 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
             VerticesData[] verticesDataArray,
             TrianglesData[] trianglesDataArray,
             int verticesArrayCount,
-            int trianglesArrayCount)
+            int trianglesArrayCount,
+            float3 center,
+            float3  cubSize,
+            float freeInf)
         {
             int _trianglesPosInBuffer = trianglesPosInBuffer + verticesArrayCount;
             int _verticesPosInBuffer = verticesPosInBuffer + verticesArrayCount;
 
             MeshAddIndexerData meshAddIndexer = new MeshAddIndexerData
             {
+                colliderType = 1,
+                freeInf =  freeInf,
+                center = center,
+                cubSize = cubSize,
                 startTrianglIndex = trianglesPosInBuffer == -1 ? 0 : trianglesPosInBuffer,
                 endTrianglIndex = _trianglesPosInBuffer,
                 startVerticeIndex = verticesBufferStride == -1 ? 0 : verticesBufferStride,

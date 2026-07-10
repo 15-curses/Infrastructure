@@ -90,7 +90,7 @@ namespace Assets.Infrastructure.Phisics
             _physicsComputeShader.SetBuffer(_computeKernelId, "TaskCounter", _moveLogic.TaskCounterBuffer);
             _physicsComputeShader.SetBuffer(_computeKernelId, "ActiveObjectCount", _moveLogic.ActiveCountBuffer);
 
-            _physicsComputeShader.SetBuffer(_computeKernelId, "ChunksBuffer", _chunkLogic.ChunkBuffer);
+            _physicsComputeShader.SetBuffer(_computeKernelId, "ChunksBuffer", _chunkLogic.ChunksBuffer);
 
             bool hasMouse = _accumulatedMouseDelta.sqrMagnitude > 0f;
             if (hasMouse) _physicsComputeShader.SetFloats("MouseDelta", _accumulatedMouseDelta.x, _accumulatedMouseDelta.y, 1f);

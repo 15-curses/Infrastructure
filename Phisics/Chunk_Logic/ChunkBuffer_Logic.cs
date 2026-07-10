@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using Unity.Mathematics;
 using UnityEngine;
+using static Unity.Collections.AllocatorManager;
 
 namespace Assets.Infrastructure.Phisics.Chunk_Logic
 {
@@ -10,7 +11,7 @@ namespace Assets.Infrastructure.Phisics.Chunk_Logic
         private int3 chunkSize;
         private int3 chunkCount;
         private int bufferCount;
-        public ComputeBuffer ChunkBuffer { get; private set; }
+        public ComputeBuffer ChunksBuffer { get; private set; }
 
         public ChunkBuffer_Logic(int3 _rangeSize, int3 _chunkSize)
         {
@@ -38,46 +39,45 @@ namespace Assets.Infrastructure.Phisics.Chunk_Logic
 
         private void InitializeBuffer()
         {
-            ChunkBuffer = new ComputeBuffer(bufferCount, Marshal.SizeOf<Chunks>());
+            ChunksBuffer = new ComputeBuffer(bufferCount, Marshal.SizeOf<Chunks>());
         }
-
+        
         private void FillBuffer()
         {
             Chunks[] chunksData = new Chunks[bufferCount];
-            int bufferIndex = 0;
+            uint bufferIndex = 0;
 
-            for (int chunkY = 0; chunkY < chunkCount.y; chunkY++)
+            for (float chunkY = 0; chunkY < chunkCount.y; chunkY++)
             {
-                for (int chunkZ = 0; chunkZ < chunkCount.z; chunkZ++)
+                for (float chunkZ = 0; chunkZ < chunkCount.z; chunkZ++)
                 {
-                    for (int chunkX = 0; chunkX < chunkCount.x; chunkX++)
+                    for (float chunkX = 0; chunkX < chunkCount.x; chunkX++)
                     {
-                        int minX = -rangeSize.x + chunkX * chunkSize.x;
-                        int maxX = minX + chunkSize.x;
+                        bufferIndex = (uint)(chunkY * chunkCount.z * chunkCount.x + chunkZ * chunkCount.x + chunkX);
 
-                        int minY = -rangeSize.y + chunkY * chunkSize.y;
-                        int maxY = minY + chunkSize.y;
+                        float minX = -rangeSize.x + chunkX * chunkSize.x;
+                        float maxX = minX + chunkSize.x;
 
-                        int minZ = -rangeSize.z + chunkZ * chunkSize.z;
-                        int maxZ = minZ + chunkSize.z;
+                        float minY = -rangeSize.y + chunkY * chunkSize.y;
+                        float maxY = minY + chunkSize.y;
+
+                        float minZ = -rangeSize.z + chunkZ * chunkSize.z;
+                        float maxZ = minZ + chunkSize.z;
 
                         chunksData[bufferIndex] = CreateChunk(minX, maxX, minY, maxY, minZ, maxZ);
-                        bufferIndex++;
                     }
                 }
             }
 
-            ChunkBuffer.SetData(chunksData);
+            ChunksBuffer.SetData(chunksData);
         }
 
-        private Chunks CreateChunk(int minX, int maxX, int minY, int maxY, int minZ, int maxZ)
+        private Chunks CreateChunk(float minX, float maxX, float minY, float maxY, float minZ, float maxZ)
         {
             Chunks chunk = new Chunks();
 
-            chunk.vertice0 = new float3(minX, minY, minZ);
-            chunk.vertice1 = new float3(maxX, minY, minZ);
-            chunk.vertice2 = new float3(minX, maxY, minZ);
-            chunk.vertice3 = new float3(maxX, maxY, minZ);
+            chunk.min_xyz = new float3(minX, minY, minZ);
+            chunk.max_xyz = new float3(maxX, maxY, maxZ);
 
             return chunk;
         }

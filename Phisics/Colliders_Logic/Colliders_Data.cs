@@ -97,7 +97,12 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
     public struct MeshIndexerData
     {
         public float colliderType;
-        public float3 trianglesBufferID0;
+        
+        public float freeInf;
+        public float3 center;
+        public float3 cubSize;
+        
+        public float4 trianglesBufferID0;
         public float4 trianglesBufferID1;
         public float4 trianglesBufferID2;
         public float4 trianglesBufferID3;
@@ -105,9 +110,22 @@ namespace Assets.Infrastructure.Phisics.Colliders_Logic
         public float4 trianglesBufferID5;
         public float4 trianglesBufferID6;
         public float4 trianglesBufferID7;
+
+        public float4 verticeBufferID0;
+        public float4 verticeBufferID1;
+        public float4 verticeBufferID2;
+        public float4 verticeBufferID3;
+        public float4 verticeBufferID4;
+        public float4 verticeBufferID5;
     };
     public struct MeshAddIndexerData
     {
+        public float colliderType;
+        public float freeInf;
+        
+        public float3 center;
+        public float3 cubSize;
+        
         public float startTrianglIndex;
         public float endTrianglIndex;
         public float startVerticeIndex;
