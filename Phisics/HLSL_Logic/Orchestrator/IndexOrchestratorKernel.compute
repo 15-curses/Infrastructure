@@ -1,6 +1,6 @@
 #pragma kernel Main
 
-#include "Assets/Infrastructure/Phisics/HLSL_Logic/Orchestrator/IncludesTree.hlsl"
+#include "Assets/Infrastructure/Phisics/HLSL_Logic/IncludesTree.hlsl"
 
 [numthreads(64, 1, 1)]
 void Main(uint3 id : SV_DispatchThreadID)
@@ -28,5 +28,3 @@ void Main(uint3 id : SV_DispatchThreadID)
         ReadOperation(packedValue);
     }
 }
-
-

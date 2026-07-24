@@ -3,11 +3,11 @@
 
 void Move(uint segmentIndex)
 {
-    PhysicsObject physicsObject = PhysicsObjectBuffer[segmentIndex];
-
+    PhysicsObject physicsObject = add_physics_object_buffer[segmentIndex];
+    
     for (int i = 0; i < 4; i++)
     {
-        switch (physicsObject.id[i])
+        switch (physicsObject.objBufferIndex[i])
         {
             case 0: break;
             case 1: Orbit(physicsObject); break;
@@ -15,7 +15,7 @@ void Move(uint segmentIndex)
             default: ResetUpdateMask(physicsObject); break;
         }
     }
-    PhysicsObjectBuffer[segmentIndex] = physicsObject;
+    physics_object_buffer[segmentIndex] = physicsObject;
 }
 
 #endif
