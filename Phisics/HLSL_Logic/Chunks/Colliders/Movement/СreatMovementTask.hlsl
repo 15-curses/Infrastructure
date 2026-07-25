@@ -143,3 +143,4 @@ void ComputePhysicsResponse(inout Object objA, inout Object objB, GJKResult3D gj
     objB.velocity        -= totalImpulse * invMassB;
     objB.angularVelocity -= mul(invInertiaB, cross(rB, totalImpulse));
 }
+

@@ -7,9 +7,6 @@
         RWStructuredBuffer<uint> ChunksIndices;
         RWStructuredBuffer<uint> ChunksIndexCount;
     #pragma endregion
-
-    #pragma region Доп:
-    #pragma endregion 
 #pragma endregion
 
 #pragma region Object-Colliders буферы:
@@ -49,6 +46,14 @@
     #pragma endregion
 
     #pragma region Доп:
+
     #pragma endregion
 
+#pragma endregion
+
+#pragma region Оркестратор буферы:
+RWStructuredBuffer<uint4> indexAdditionalDataBuffer;
+
+RWStructuredBuffer<uint> threadsCounter0Buffer;
+RWStructuredBuffer<uint> threadsCounter1Buffer;
 #pragma endregion
