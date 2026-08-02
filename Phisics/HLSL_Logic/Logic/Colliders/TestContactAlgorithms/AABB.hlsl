@@ -18,32 +18,20 @@ struct AABB
 /// Использует алгоритм Джима Арво (Jim Arvo) для быстрого вычисления минимально объемлющего 
 /// мирового хитбокса без явного поворота всех 8 вершин объекта.
 /// </remarks>
-/// <param name="localBox">Локальный неизменяемый AABB объекта (на входе), Мировой AABB (на выходе).</param>
+/// <param name="box">Локальный неизменяемый AABB объекта (на входе), Мировой AABB (на выходе).</param>
 /// <param name="worldPos">Мировая позиция графического центра (Pivot) объекта.</param>
 /// <param name="rotMat">Текущая мировая матрица вращения 3x3.</param>
-AABB TransformAABB(in AABB localBox, float3 worldPos, float3x3 rotMat)
+void TransformAABB(inout AABB box, float3 worldPos, float3x3 rotMat)
 {
-    // Находим геометрический центр и полуразмеры (extents) локального хитбокса
-    float3 localCenter  = (localBox.min + localBox.max) * 0.5f;
-    float3 localExtents = (localBox.max - localBox.min) * 0.5f;
-    
-    // Переносим центр хитбокса в мировые координаты.
-    // В HLSL для Row-Major матриц правильный порядок: mul(vector, matrix)
-    float3 worldCenter = mul(localCenter, rotMat) + worldPos;
-    
-    // Вычисляем новые мировые полуразмеры (extents) хитбокса.
-    // Берём абсолютные значения строк матрицы, так как они проецируют локальные оси на мировые.
+    float3 localCenter  = (box.min + box.max) * 0.5f;
+    float3 localExtents = (box.max - box.min) * 0.5f;
+    float3 worldCenter  = mul(localCenter, rotMat) + worldPos;
     float3 worldExtents;
     worldExtents.x = dot(abs(rotMat[0]), localExtents);
     worldExtents.y = dot(abs(rotMat[1]), localExtents);
     worldExtents.z = dot(abs(rotMat[2]), localExtents);
-    
-    // Формируем итоговый мировой AABB
-    AABB worldBox;
-    worldBox.min = worldCenter - worldExtents;
-    worldBox.max = worldCenter + worldExtents;
-    
-    return worldBox;
+    box.min = worldCenter - worldExtents;
+    box.max = worldCenter + worldExtents;
 }
 
 /// <summary>
@@ -61,7 +49,6 @@ AABB TransformAABB(in AABB localBox, float3 worldPos, float3x3 rotMat)
 bool CheckAABBCollision3D(
     AABB boxA, AABB boxB)
 { 
-    
     return (boxA.min.x <= boxB.max.x && boxA.max.x >= boxB.min.x) &&
            (boxA.min.y <= boxB.max.y && boxA.max.y >= boxB.min.y) &&
            (boxA.min.z <= boxB.max.z && boxA.max.z >= boxB.min.z);

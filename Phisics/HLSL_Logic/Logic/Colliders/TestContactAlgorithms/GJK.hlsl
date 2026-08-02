@@ -280,18 +280,18 @@ GJKResult3D GetClosestPoints3D(uint meshId0, uint vertexCount0, uint meshId1, ui
                     float3 f0 = faces[f][0];
                     float3 f1 = faces[f][1];
                     float3 f2 = faces[f][2];
-    
-                    float3 edge0  = f1 - f0;
-                    float3 edge1  = f2 - f0;
-                    float d00 = dot(e0, e0);
-                    float d01 = dot(e0, e1);
-                    float d11 = dot(e1, e1);
+
+                    float3 edge0 = f1 - f0;
+                    float3 edge1 = f2 - f0;
+                    float d00 = dot(edge0, edge0);
+                    float d01 = dot(edge0, edge1);
+                    float d11 = dot(edge1, edge1);
                     float denom = d00 * d11 - d01 * d01;
-    
+
                     if (abs(denom) < 0.00001) continue;
-    
-                    float v = (d11 * dot(-f0, e0) - d01 * dot(-f0, edge1)) / denom;
-                    float w = (d00 * dot(-f0, e1) - d01 * dot(-f0, edge0)) / denom;
+
+                    float v = (d11 * dot(-f0, edge0) - d01 * dot(-f0, edge1)) / denom;
+                    float w = (d00 * dot(-f0, edge1) - d01 * dot(-f0, edge0)) / denom;
                     float u = 1.0 - v - w;
     
                     if (u >= 0.0 && v >= 0.0 && w >= 0.0)

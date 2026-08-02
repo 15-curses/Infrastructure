@@ -15,6 +15,8 @@
 /// </returns>
 bool СontactСheck(uint objId0, uint objId1, out GJKResult3D gjkResult)
 {
+    gjkResult = (GJKResult3D)0;
+    
     Object obj0 = ObjectBuffer[objId0];
     Object obj1 = ObjectBuffer[objId1];
     

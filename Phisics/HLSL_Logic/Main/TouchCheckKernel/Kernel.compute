@@ -1,0 +1,28 @@
+#pragma kernel PopulateArgs
+#pragma kernel PhysicallyStep
+
+#include "Assets/Infrastructure/Phisics/HLSL_Logic/General/IncludesTree.hlsl"
+
+[numthreads(1, 1, 1)]
+void PopulateArgs(uint3 id : SV_DispatchThreadID)
+{
+    uint count = CounterBuffer[0];
+    uint threadGroupsX = (count + 63) / 64; 
+    
+    IndirectArgsBuffer[0] = threadGroupsX; // Группы по X
+    IndirectArgsBuffer[1] = 1;             // Группы по Y
+    IndirectArgsBuffer[2] = 1;             // Группы по Z
+}
+
+[numthreads(64, 1, 1)]
+void PhysicallyStep(uint3 id : SV_DispatchThreadID)
+{
+    uint orchestrator_buffer_size = CounterBuffer[0];
+    
+    if (id.x >= orchestrator_buffer_size) return; 
+    
+    uint element = NeedTouchCheckObjBuffer[id.x];
+    
+    ReadStep(element);
+    DecrementMove();
+}

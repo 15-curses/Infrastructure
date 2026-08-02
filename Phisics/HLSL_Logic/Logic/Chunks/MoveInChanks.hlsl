@@ -24,8 +24,8 @@
     minChunkLocal = clamp(minChunkLocal, int3(0, 0, 0), limit);
     maxChunkLocal = clamp(maxChunkLocal, int3(0, 0, 0), limit);
     
-    uint strideY = (uint)chunksCount.x;
-    uint strideZ = (uint)chunksCount.x * (uint)chunksCount.y;
+    uint strideY = (uint)chunksCount.x;                         // TODO: на GridParams переписать
+    uint strideZ = (uint)chunksCount.x * (uint)chunksCount.y;   // TODO: на GridParams переписать
     
     for (int z = minChunkLocal.z; z <= maxChunkLocal.z; ++z)
     {
