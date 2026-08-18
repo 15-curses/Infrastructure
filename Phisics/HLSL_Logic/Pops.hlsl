@@ -1,18 +1,62 @@
-﻿#pragma region Morton
+﻿#pragma region Data
 
 struct AABB 
 {
     float3 minPos;
     float3 maxPos;
 };
+struct Object
+{
+    AABB bounds;
+    uint objId_InGlobalBuffer;
+};
+
+struct GlobalObj 
+{
+    float4x4    transform;
+    float3      massCenter; 
+    float3      minAABB; 
+    float3      maxAABB;
+    float3      rotation;   
+    float3      position;
+    float3      velocity;   
+    float3      angularVelocity;
+
+    uint     colliderType;
+    uint     objBufferIndex;                                       
+    uint     additionalBufferIndex;                                    
+            
+    float    mass;                                                      
+    float    staticFriction;                                      
+    float    dynamicFriction;                       
+    float    updateMask;
+};
+
+RWStructuredBuffer<Object> MovedObjects;
+RWStructuredBuffer<uint> MovedObjectCounter; // size 1
+RWStructuredBuffer<GlobalObj> GlobalObjects; // список всех обектов
+
+#pragma endregion
+
+void AddMovedObject(uint objId_InGlobalBuffer, AABB bounds)
+{
+    uint movedObjectId;
+    InterlockedAdd(MovedObjectCounter[0], 1, movedObjectId);
+    
+    Object object;
+    object.objId_InGlobalBuffer = objId_InGlobalBuffer;
+    object.bounds = bounds;
+    
+    MovedObjects[movedObjectId] = object;
+}
+
+#pragma region Morton
 
 struct MortonPair 
 {
     uint mortonCode; // Сам код Мортона
     uint objectID;   // Исходный индекс объекта
 };
-
-StructuredBuffer<AABB> In_ObjectsAABB : register(t0); // Все AABB объектов
 
 cbuffer SceneBounds : register(b0)
 {
@@ -49,13 +93,13 @@ uint CalculateMorton3D(float3 center)
 }
 
 [numthreads(64, 1, 1)]
-void Morton_Main(uint3 dtID : SV_DispatchThreadID)
+void MortonKernel(uint3 dtID : SV_DispatchThreadID)
 {
     uint objIdx = dtID.x;
 
     if (objIdx >= ObjectCount_SceneBounds) return;          // Защита от выхода за пределы массива
     
-    AABB bounds = In_ObjectsAABB[objIdx];                   // 1. Получаем AABB текущего объекта
+    AABB bounds = MovedObjects[objIdx].bounds;              // 1. Получаем AABB текущего объекта
     float3 center = (bounds.minPos + bounds.maxPos) * 0.5f; // 2. Вычисляем центр объекта
     uint code = CalculateMorton3D(center);                  // 3. Считаем код Мортона
     
@@ -278,7 +322,7 @@ struct BVHNode {
 
 // использовались оба под u0 одновременно в BVH_MAin - конфликт слота.
 RWStructuredBuffer<BVHNode> BVHNodes           : register(u0);  // Дерево
-StructuredBuffer<uint>     In_ActiveIndices   : register(t1);   // Индексы нод на текущем шаге
+StructuredBuffer  <uint>    In_ActiveIndices   : register(t1);   // Индексы нод на текущем шаге
 RWStructuredBuffer<uint>    Out_ActiveIndices  : register(u1);  // Индексы нод для следующего шага
 
 // Буфер со счетчиками (выделение памяти под внутренние ноды и под сборку следующего шага)
@@ -327,7 +371,7 @@ void BVH_Main(uint3 dtID : SV_DispatchThreadID, uint  localIdx : SV_GroupIndex)
         BVHNodes[myNodeIdx].leftChild  = myNodeIdx;      // objectId листа
         BVHNodes[myNodeIdx].rightChild = 0xFFFFFFFFu;
         BVHNodes[myNodeIdx].parent     = 0xFFFFFFFFu;
-        BVHNodes[myNodeIdx].bounds     = In_ObjectsAABB[myNodeIdx]; // читаем ТОЛЬКО когда точно лист
+        BVHNodes[myNodeIdx].bounds     = MovedObjects[myNodeIdx].bounds; // читаем ТОЛЬКО когда точно лист
     }
 
     AABB myBox = BVHNodes[myNodeIdx].bounds;
@@ -521,10 +565,9 @@ struct CandidatePair
     uint objB;
 };
 
-StructuredBuffer<BVHNode>        In_BVHNodes      : register(t0);
-
-RWStructuredBuffer<CandidatePair> Out_CandidatePairs : register(u0);
-RWStructuredBuffer<uint>          Out_PairCount       : register(u1); // [0] = атомарный счётчик
+StructuredBuffer<BVHNode>         In_BVHNodes           : register(t0);
+RWStructuredBuffer<CandidatePair> Out_CandidatePairs    : register(u0); // буфер с парами  под gjk 
+RWStructuredBuffer<uint>          Out_PairCount         : register(u1); // [0] = атомарный счётчик
 
 cbuffer BVHTraversalSettings : register(b0)
 {
@@ -533,7 +576,6 @@ cbuffer BVHTraversalSettings : register(b0)
 };
 
 StructuredBuffer<uint> In_RootNodeIndex : register(t1);
-
 
 bool OverlapAABB(AABB a, AABB b)
 {
@@ -561,10 +603,12 @@ void EmitPair(uint idA, uint idB)
 void CS_TraverseBVH(uint3 DTid : SV_DispatchThreadID)
 {
     uint myLeafIdx = DTid.x;
+    
     if (myLeafIdx >= ObjectCount_Trav) return;
-
-    AABB myBox = In_BVHNodes[myLeafIdx].bounds;
-    uint myObjId = In_BVHNodes[myLeafIdx].leftChild; // у листа leftChild переиспользован под objectId
+    
+    BVHNode node = In_BVHNodes[myLeafIdx];
+    AABB myBox = node.bounds;
+    uint myObjId = node.leftChild; // у листа leftChild переиспользован под objectId
 
     // Локальный стек индексов нод, которые предстоит посетить
     uint stack[STACK_SIZE];
@@ -574,16 +618,15 @@ void CS_TraverseBVH(uint3 DTid : SV_DispatchThreadID)
     while (stackPtr > 0)
     {
         uint nodeIdx = stack[--stackPtr];
-        BVHNode node = In_BVHNodes[nodeIdx];
+        BVHNode node0 = In_BVHNodes[nodeIdx];
 
         // Грубая отсечка: если AABB ноды (поддерева) не пересекает нас — пропускаем
-        if (!OverlapAABB(myBox, node.bounds))
-            continue;
+        if (!OverlapAABB(myBox, node0.bounds)) continue;
         
-        if (node.isLeaf != 0)
+        if (node0.isLeaf != 0)
         {
             // У листа leftChild переиспользован под objectId (см. BVH_Main).
-            uint otherObjId = node.leftChild;
+            uint otherObjId = node0.leftChild;
 
             if (otherObjId != myObjId && myObjId < otherObjId)
             {
@@ -591,10 +634,9 @@ void CS_TraverseBVH(uint3 DTid : SV_DispatchThreadID)
             }
             continue;
         }
-
-
-        if (stackPtr < STACK_SIZE) stack[stackPtr++] = node.leftChild;
-        if (stackPtr < STACK_SIZE) stack[stackPtr++] = node.rightChild;
+        
+        if (stackPtr < STACK_SIZE) stack[stackPtr++] = node0.leftChild;
+        if (stackPtr < STACK_SIZE) stack[stackPtr++] = node0.rightChild;
     }
 }
 
