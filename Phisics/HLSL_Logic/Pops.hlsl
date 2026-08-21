@@ -322,7 +322,7 @@ struct BVHNode {
 
 // использовались оба под u0 одновременно в BVH_MAin - конфликт слота.
 RWStructuredBuffer<BVHNode> BVHNodes           : register(u0);  // Дерево
-StructuredBuffer  <uint>    In_ActiveIndices   : register(t1);   // Индексы нод на текущем шаге
+StructuredBuffer  <uint>    In_ActiveIndices   : register(t1);  // Индексы нод на текущем шаге
 RWStructuredBuffer<uint>    Out_ActiveIndices  : register(u1);  // Индексы нод для следующего шага
 
 // Буфер со счетчиками (выделение памяти под внутренние ноды и под сборку следующего шага)
@@ -384,7 +384,7 @@ void BVH_Main(uint3 dtID : SV_DispatchThreadID, uint  localIdx : SV_GroupIndex)
     int start = max(0, (int)currentActiveIdx - (int)SearchWindow);
     int end   = min((int)ActiveCount - 1, (int)currentActiveIdx + (int)SearchWindow);
 
-    for (int j = start; j <= end; j++) 
+    for (int j = start; j <= end; j++)
     {
         if ((uint)j == currentActiveIdx) continue;
 
